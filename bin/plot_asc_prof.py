@@ -24,7 +24,8 @@ def main():
           plot_file = 'profile.png'
 
      plot_prof(prof_data, hgrid=True, vgrid=True)
-     plt.savefig(plot_file)
+     plt.show()
+#     plt.savefig(plot_file)
 
 
 main()

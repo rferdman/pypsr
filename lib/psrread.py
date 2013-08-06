@@ -12,6 +12,10 @@ tempo2_resid_format_file='/Users/ferdman/Work/pulsar/data_tables/tempo2_resid_fo
 
 def get_duty(psr_name):
      
+     # Strip off leading 'J' or 'B' if there
+     if(psr_name[0] == 'J' or psr_name[0] == 'B'):
+          psr_name = psr_name[1:]
+
      # Open duty cycle data file
      try:
           f_duty = open(duty_file,'r')
@@ -41,7 +45,7 @@ def get_duty(psr_name):
          duty = duty_default
          print "Could not find pulsar " + psr_name + " in duty lookup table."
          print "Consider adding a new line to " + duty_file
-         print "Will set duty to " + duty_default + " for no good reason."
+         print "Will set duty to ", duty_default, " for no good reason."
          print ""
 
      return duty
@@ -50,7 +54,7 @@ def get_duty(psr_name):
 
 # Routine to read print_resids-format ascii residual data file.  returns a 
 # dictionary that contains mjd, res, res_err, and freq
-def read_resid(resid_file, info_file=None, tempo2=False):     
+def read_resid(resid_file, tempo2=False, info_file=None, info_flag=None):     
 
     # Open residual file
     try:
@@ -75,12 +79,22 @@ def read_resid(resid_file, info_file=None, tempo2=False):
 ###             np.loadtxt(f_res, dtype='double', comments='#', 
 ###                        usecols=(1,2,3,4,5,6,7,8), unpack=True)
 # Read in lines of file, and cast each column into appropriate data types
-         resid_arr = [line.split() for line in f_res.readlines()]
+         n_tempo2_cols = 9 # Standard, non-flag number of columns in tempo2 residual file
+         file_lines = f_res.readlines()
+         resid_arr = [line.split() for line in file_lines]
+         # Get rid of lines like "JUMP", "SKIP", "NO SKIP", etc.
+
 # Will assume that there are 8 columns in file as commented out above:
          n_rows = len(resid_arr)
-         n_col = len(resid_arr[0])
-         if(n_col != 9):
-              print 'For tempo2 output there should be 9 columns.  Exiting...'
+         min_n_col = np.amin(np.array([len(resid_arr[i]) for i in np.arange(n_rows)]))
+         max_n_col = np.amax(np.array([len(resid_arr[i]) for i in np.arange(n_rows)]))
+#         n_col = len(resid_arr[0])
+         if(min_n_col < n_tempo2_cols):
+              print 'MIN_N_COL = ', min_n_col
+              print 'For tempo2 output there should be at least 9 columns.  Exiting...'
+              min_ind = np.argmin(np.array([len(resid_arr[i]) for i in np.arange(n_rows)]))
+              print 'line', min_ind
+              print resid_arr[min_ind]
               return
          resp=np.array([resid_arr[i][1] for i in range(n_rows)], dtype=float)
          res=np.array([resid_arr[i][2] for i in range(n_rows)], dtype=float)
@@ -90,6 +104,73 @@ def read_resid(resid_file, info_file=None, tempo2=False):
          mjd=np.array([resid_arr[i][6] for i in range(n_rows)], dtype=float)
          obsfreq=np.array([resid_arr[i][7] for i in range(n_rows)], dtype=float)
          nobs=np.array([resid_arr[i][8] for i in range(n_rows)])
+         # If there are more than 9 columns, the rest are flags from the TOA line
+         # if(max_n_col > n_tempo2_cols):
+              # Will handle each row separately since different rows may have different 
+              # numbers of flags
+         #flag_exists = []
+         flag_d = [] # turn this and args into np.array() later
+         #flag_arg = []
+         for i_row in range(n_rows):
+              n_col = len(resid_arr[i_row])
+              flag_d_temp = {}
+              if(n_col > n_tempo2_cols):
+                   flag_data=resid_arr[i_row][9:n_col]
+                   i_flag=0
+                   while(i_flag < len(flag_data)):
+                        if(flag_data[i_flag].startswith('-') and 
+                           not flag_data[i_flag+1].startswith('-')):
+                             flag_d_temp[flag_data[i_flag]] = flag_data[i_flag+1]
+                             i_flag += 2
+                        elif(flag_data[i_flag].startswith('-') and 
+                             flag_data[i_flag+1].startswith('-') or
+                             flag_data[i_flag].startswith('-') and 
+                             i_flag==flag_data-1):
+                             flag_d_temp[flag_data[i_flag]] = ''
+                             i_flag += 1
+                        else:
+                             print 'Problem with flag section of TOA line: '
+                             print '    '+' '.join(resid_arr[i_row])
+                             
+                             
+                   #flag_exists_temp = True
+                   ##flag_data=np.array(resid_arr[i_row][9:n_col])
+                   ##n_flag_data = len(flag_data)
+                   ##is_flag = [flag_data[i][0]=='-' for i in range(len(flag_data))]
+                   ##flag_inds = np.where(is_flag)[0]
+                   ##flag_name_temp = flag_data[flag_inds]
+                   ##flag_arg_temp = np.empty_like(flag_name_temp)
+                   ##for i_flag in range(len(flag_inds)):
+                   ##     next_ind = flag_inds[i_flag]+1 
+                   ##     if next_ind < n_flag_data:
+                   ##          if (is_flag[next_ind] == False):
+                   ##               flag_arg_temp[i_flag] = flag_data[next_ind]
+                   ##          else:
+                   ##               flag_arg_temp[i_flag] = ''
+                   ##     else:
+                   ##          flag_arg_temp[i_flag] = ''
+              else:
+                   #flag_exists_temp = False
+                   flag_d_temp['no_flag'] = ''
+                   ##flag_name_temp = ['']
+                   ##flag_arg_temp = ['']
+ 
+              flag_d.append(flag_d_temp)
+              
+              
+              #flag_exists.append(flag_exists_temp) 
+              #flag_arg.append(flag_arg_temp)
+
+         ##flag_name = np.array(flag_name)
+         ##flag_arg = np.array(flag_arg)
+#         print 'flag_name = ', flag_name
+#         print 'flag_arg  = ', flag_arg
+     
+     # Now we can select which values to use for info for colour coding when plotting.
+     # Choose backend by default, unless there is no backend flag, then revert to telescope`
+
+     #flag_data=np.array([resid_arr[i][9:n_col] for i in range(n_rows)])
+              #flag_name=
          
 # Just make serial number to be in order of residuals printed by tempo2
          serial = [i for i in range(len(res))] 
@@ -97,15 +178,45 @@ def read_resid(resid_file, info_file=None, tempo2=False):
          res = res*1e6
          preres = preres*1e6
 # For now, don't use info numbers
-         info_num = None
+         info_id = None
          info_val = None
          info_instr = None
+# If user has used the --infoflag option, then use given flag to colour-code
+# residuals.
+         if (info_flag != None):
+# Check the flag names and if the requested flag is not present for all TOAs, 
+# then give error and exit
+              flag_exists = np.sum(np.array([flag_d[i_flag].has_key(info_flag) 
+                                             for i_flag in range(len(flag_d))])) == len(flag_d)
+              ##test_flags = []               
+              ##for i_flag in range(np.shape(flag_name)[0]):
+              ##     test_flags.append(np.sum(np.array([flag_name[i_flag][j_flag]==info_flag 
+              ##                           for j_flag in range(len(flag_name[i_flag]))])) )
+              ##flag_exists = np.sum(np.array(test_flags)) == np.shape(flag_name)[0]
+              print 'FLAG_EXISTS = ',flag_exists
+              # If the flag exists in every TOA line, then proceed with assigning values
+              # to info variables.
+              ##print 'FLAG_NAME = ', flag_name
+              ##print 'FLAG_ARG = ', flag_arg
+              if(flag_exists):
+                   info_id = np.array([flag_d[i_flag][info_flag] for i_flag in range(len(flag_d))])
+                   ##info_id = np.extract(flag_name==info_flag, flag_arg)
+                   info_val, info_indices = np.unique(info_id, return_index=True)
+              # Otherwise, give error message and quit. 
+              else:
+                   print 'Requested flag ' +info_flag+ ' for colour-coding does not exist'
+                   print ' for some TOAs.  Exiting.'
+                   exit()
+                   
+
+         else:
 # Instead of info numbers, here, if user has used the '--info' flag, we will
-# plot different nobs different colours
-         info_val, info_indices = np.unique(nobs, return_index=True)
+# plot different nobs different colours by deafult
+              info_val, info_indices = np.unique(nobs, return_index=True)
+              info_id = nobs # just to make compatible with rest of code and plotter
+         print 'INFO_ID = ', info_id
          print 'INFO_VAL = ', info_val
-         info_num = nobs # just to make compatible with rest of code and plotter
-       
+      
 # Otherwise, assume it is in c.tmp format from tempo1:    
     else:
          resp, res, reserr, preres, orbphase, mjd, serial, obsfreq = \
@@ -138,7 +249,7 @@ def read_resid(resid_file, info_file=None, tempo2=False):
          
          # Assuming info.tmp format:
               info_arr = [line.split() for line in f_info.readlines()]
-              info_num = np.array([info_arr[i][0] for i in range(len(info_arr))])
+              info_id = np.array([info_arr[i][0] for i in range(len(info_arr))])
               # Test to see if there are two columns by checking number of 
               # elements in each line.  If there is one column, assign 
               # info_instr=NULL
@@ -152,14 +263,14 @@ def read_resid(resid_file, info_file=None, tempo2=False):
          
          # Array for unique values of info number, and corresponding
          # second column, if it exists
-              info_val, info_indices = np.unique(info_num, return_index=True)
+              info_val, info_indices = np.unique(info_id, return_index=True)
               info_instr = instrument[info_indices]
                    
               print 'Found ', len(info_val), ' info numbers: '
               for i_info in np.arange(len(info_val)):
                    print '   ', info_val[i_info], '  ', info_instr[i_info]
          else:
-              info_num = None
+              info_id = None
               info_val = None
               info_instr = None
 
@@ -171,7 +282,7 @@ def read_resid(resid_file, info_file=None, tempo2=False):
     resid_data = {'resp':resp, 'res':res, 'reserr':reserr, 'preres':preres, \
                        'orbphase':orbphase, 'mjd':mjd, 'serial':serial, \
                        'obsfreq':obsfreq, \
-                       'info':info_num, 'info_val':info_val, \
+                       'info':info_id, 'info_val':info_val, \
                        'info_instr':info_instr}
 
     
@@ -221,7 +332,7 @@ def read_asc_header(prof_file):
         f_prof = open(prof_file,'r')
     except IOError as (errno, strerror):
         if (errno == 2):  # file not found
-            print "IOError ({0}): File".format(errno), prof_file, "not found"
+            print "IOError ({0}): File".format(errno), prof_file, "not found"            
         else:
             print "IOError ({0}): {1}".format(errno, strerror)
             return

@@ -119,11 +119,20 @@ def norm(prof_data, duty):
      base_mean, base_rms = get_base(prof_data, duty)
 
      prof_peak = np.amax(prof_data)
-     snr = (prof_peak - base_mean)/base_rms
+     # snr = (prof_peak - base_mean)/base_rms
      
-     prof_norm = (prof_data - base_mean)/(prof_peak - base_mean)
+     # Check for division by zero:
+     # num = prof_data - base_mean
+     denom = prof_peak - base_mean
 
-     # return SNR     
+     # If there is a division by zero issue, just make the array all zeros
+     print 'Checking for division by zero...'
+     if (div_check(1.0, denom)):
+          prof_norm = np.zeros_like(prof_data)
+     else:
+          prof_norm = (prof_data - base_mean)/(prof_peak - base_mean)
+     
+     # return normalized prof
      return prof_norm
 
 

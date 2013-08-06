@@ -12,12 +12,12 @@ import mjd
 # Routine to plot the residuals against date.  For now, use MJD, but will 
 # update it to plot against years.  Will give command line option for MJD 
 # soon, though.
-def plot_resid(resid_data, info_plot=None, canvassize=None, \
-                    preres=False, xunits='mjd', yunits='us', \
-                    xticks=True, yticks=True, xlabel=True, ylabel=True, \
-                    sym='o', symsize=1.8, colour='black', csize=1.3, \
-                    xlim=None, ylim=None, figtext=None, gridlines=None, \
-                    mjdlim=None, yearlim=None, orbphaselim=None):
+def plot_resid(resid_data, info_plot=None, canvassize=None, 
+               preres=False, xunits='mjd', yunits='us', 
+               xticks=True, yticks=True, xlabel=True, ylabel=True, 
+               sym='o', symsize=1.8, colour='black', csize=1.3, 
+               xlim=None, ylim=None, figtext=None, gridlines=None, 
+               mjdlim=None, yearlim=None, orbphaselim=None):
 
      possible_xunits = ['mjd', 'mjd0', 'year', 'orbphase', 'serial']
      if(possible_xunits.count(xunits) == 0):
@@ -118,6 +118,8 @@ def plot_resid(resid_data, info_plot=None, canvassize=None, \
                ax.set_xlabel('MJD - {:d}'.format(int(mjdint)), fontsize=18)
           elif(xunits=='year'):
                ax.set_xlabel('Year', fontsize=18)
+               xmajorFormatter = FormatStrFormatter('%4d')
+               ax.xaxis.set_major_formatter(xmajorFormatter)
 
 
      if (ylabel):
@@ -631,15 +633,26 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
 #          ax_inset.set_xlabel('$m_1$')
 #          ax_inset.set_ylabel('$m_2$')
      # Plot GR-derived masses, if given:
-          ax_inset.plot(m1gr, m2gr, 'o', markersize=3.8, color='black')
-          ax_inset.errorbar(m1gr, m2gr, xerr=m1gr_err, 
-                            yerr=m2gr_err, ecolor='black')
+          if(m1gr != None and m2gr != None):
+               ax_inset.plot(m1gr, m2gr, 'o', markersize=3.8, color='black')
+               ax_inset.errorbar(m1gr, m2gr, xerr=m1gr_err, 
+                                 yerr=m2gr_err, ecolor='black')
+
           ax_inset.tick_params(labelsize=11)
 
+          return
+
+
+# Will take array of TOAs and TOA errors, and plot median TOA error over time.
+# Will calculate median TOA error from all TOAs on a given day, if there is more 
+# than one TOA for the given day.
+## def plot_toa_err(toa_data, canvassize=None, xunits='mjd', yunits='us',
+##                  sym='o', symsize=1.8, colour='black', csize=1.3, 
+##                  xlim=None, ylim=None, figtext=None, gridlines=None):
+## 
+##      if(xunits=='year'):
+##           toa_data['year'] = \
+##               np.array([mjd.mjdtoyear(m) for m in toa_data['mjd']])
+
+
           
-
-               
-     
-
-
-     return

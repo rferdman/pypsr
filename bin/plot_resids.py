@@ -23,14 +23,18 @@ def get_opt(progname):
                          help='input residual data file')
      parser.add_argument('--infofile',
                          nargs=1,
-                         help='input info data file to distinguish data sets')
+                         help='input info data file to distinguish data sets from tempo1')
      parser.add_argument('--outfile',
                          nargs='?',
-                         default='resid.png',
+                         const='resid.png',
+                         default=None,
                          help='output plot file name, with extension')
      parser.add_argument('--info',
                          nargs='*',
-                         help='info numbers to plot based on info file')
+                         help='info numbers/values to plot based on info file (tempo1), or telescope IDs/flag values (tempo2)')
+     parser.add_argument('--infoflag',
+                         nargs=1,
+                         help='use this flag\'s arguments to for colour-coding with tempo2 residuals')
      parser.add_argument('--xunits',
                          nargs=1,
                          default=['mjd'],
@@ -67,6 +71,9 @@ def get_opt(progname):
                print 'No info file given.  Will ignore --info command line option.'
      else:
           args.infofile = args.infofile[0]  # otherwise stored as a list...
+
+     if(args.infoflag):
+          args.infoflag = '-'+args.infoflag[0]
 
      if(args.xunits): # true for now, for xunits being only one value
           args.xunits = args.xunits[0]
@@ -114,13 +121,21 @@ def main():
 
 # First, read in residuals data file, and assign each column to a separate
 # numpy array     
-     resid_data = read_resid(args.resfile, info_file=args.infofile, tempo2=args.tempo2)
+     resid_data = read_resid(args.resfile, 
+                             tempo2=args.tempo2, info_file=args.infofile, info_flag=args.infoflag)
 #     print res_data['mjd']
 
 #     if (len(argv) > 2):   # meaning 2nd argument is the desired output plot file name
 #          plot_file = argv[2]
 #     else:
-     plot_file = args.outfile
+
+     print "OUTFILE = ", args.outfile
+     if(args.outfile == None):
+          fig_size = (16, 6)
+     else:
+          fig_size = (14, 5)
+          plot_file = args.outfile
+
 
 # If --info is not used and this is a tempo2 input file, then make info_plot==None
      if(args.tempo2):
@@ -136,10 +151,15 @@ def main():
 
      print 'xlim = ', args.xlim
      plot_resid(resid_data, info_plot=args.info,
+                canvassize=fig_size,
                 xunits=args.xunits, yunits=args.yunits, 
                 xlim=args.xlim,
                 ylim=args.ylim)
 
-     plt.savefig(plot_file)
+     if(args.outfile):
+          plt.savefig(plot_file)
+     else:
+          plt.show()
+     
 
 main()

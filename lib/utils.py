@@ -1,5 +1,6 @@
 # Scripts for reading in various pulsar data  products and packaging them into dictionary objects
 import sys
+import subprocess
 import numpy as np
 import scipy as sp
 from scipy.optimize import curve_fit
@@ -138,3 +139,17 @@ def bounding_index(x, x_val):
      near_inds = np.array([n_low, n_high])
      return near_inds
      
+# Simple command execution, returning standard output
+def exec_cmd(cmd_str):
+     cmd_str = cmd_str.split()
+     proc = subprocess.Popen(cmd_str, stdout=subprocess.PIPE)
+     proc_out = proc.communicate()[0]
+     return proc_out
+
+def div_check(num, denom):
+  try: 
+     float(num) / float(denom)
+  except ZeroDivisionError:
+     return True
+  else:
+     return False
