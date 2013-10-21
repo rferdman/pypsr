@@ -16,10 +16,13 @@ def main():
 
      width_data =[]
      for wfile in width_file:
-          width_data.append(read_widths(wfile))
+#          width_data.append(read_widths(wfile))
+          width_data.append(read_widths(wfile, units_in='phase', units_out='cos_phi'))
 #     print res_data['mjd']
 
-     plot_widths(width_data, yunits='deg')
+
+#     plot_widths(width_data, yunits='deg')
+     plot_widths(width_data)
 
      plot_file = 'widths.png'
 

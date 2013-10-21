@@ -37,7 +37,6 @@ def datetomjd(year, month, day, hour, minutes, seconds):
     date_in = date_in.utctimetuple()
 
 #    date_in.tm_isdst=0
-
     timestamp_in = time.mktime(date_in)
 
     mjd_out = (timestamp_in/86400.) + 40587.

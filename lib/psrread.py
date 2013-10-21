@@ -4,11 +4,28 @@ from sys import argv, exit
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from psrcalc import rad_to_cos_phi
 
 
 duty_file='/Users/ferdman/Work/pulsar/data_tables/duty_lookup_table.dat'
 duty_default = 0.55
 tempo2_resid_format_file='/Users/ferdman/Work/pulsar/data_tables/tempo2_resid_format.dat'
+
+# define an exception that will be used if the arguments are bad:
+class ArgError(Exception):
+    """Exception called when something is wrong with one of the arguments
+    passed to a function
+
+    Attributes:
+        name    -- argument name
+        value   -- argument value given by user
+        message -- explanation of the error
+    """
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+        self.output = "Argument \'"+value+"\' to \'"+name+ \
+            "\' keyword is not valid."
 
 def get_duty(psr_name):
      
@@ -173,7 +190,7 @@ def read_resid(resid_file, tempo2=False, info_file=None, info_flag=None):
               #flag_name=
          
 # Just make serial number to be in order of residuals printed by tempo2
-         serial = [i for i in range(len(res))] 
+         serial = np.arange(len(res)) #[i for i in range(len(res))] 
 # Default units for tempo2 is seconds -- make it microseconds here:
          res = res*1e6
          preres = preres*1e6
@@ -364,26 +381,92 @@ def read_asc_header(prof_file):
 # Routine to read  ascii profile width data file.  Returns a 
 # dictionary that contains mjd, and width, width error in units of 
 # profile phase [0,1].
-def read_widths(width_file, rfile=None):     
-
-    # Open residual file
+def read_widths(width_file, rfile=None, units_in='deg', units_out='deg'):     
+            
+    print "File", width_file, "open."
+    
+    possible_units=['radians', 'radian', 'rad', 'degrees', 'degree', \
+        'deg', 'phase', 'cos_phi']
+    if(possible_units.count(units_in)==0):
+        print 'ERROR: Input width units must be either \'rad\', \'deg\', \'phase\', or \'cos_phi\'.'
+        exit()
+    if(possible_units.count(units_out)==0):
+        print 'ERROR: Input width units must be either \'rad\', \'deg\', \'phase\', or \'cos_phi\'.'
+        exit()
+                
+    if(units_in=='cos_phi'):
+        print 'ERROR: \'cos_phi\' is not currently supported as an input width unit.'
+        exit()            
+ 
+    # Open width file
     try:
         f_width = open(width_file,'r')
     except IOError as (errno, strerror):
         if (errno == 2):  # file not found
-            print "IOError ({0}): File".format(errno), width_file, "not found"
+            print 'IOError ({0}): File {1}'.format(errno), width_file, ' not found.'
         else:
-            print "IOError ({0}): {1}".format(errno, strerror)
-            exit
+            print 'IOError ({0}): {1}'.format(errno, strerror)
+            exit()
         
-    print "File", width_file, "open."
-        
+    # Read header line
+    header_line = f_width.readline().split()
+    if(header_line[0] == '#'): # Indicates the existence of a header line
+        header_line_exists = True
+        psr_name = header_line[1] # Zeroth char is a '#'
+        percent_height=header_line[2]
+        phase_range = np.array([header_line[3], header_line[4]])
+    else:
+        header_line_exists = False
+        print 'WARNING: Input width file does not have a header line.'
+    # In any case, rewind file pointer position for loadtxt (not sure if needed)
+    f_width.seek(0)
+    
+    # Read input file
     mjd, width, werr = \
         np.loadtxt(f_width, dtype='double', comments='#', 
-                   usecols=(0, 1, 2), unpack=True)        
+        usecols=(0, 1, 2), unpack=True)        
+
+    # Now sort out input/output unit conversions
+    if(units_in=='phase'):
+        if(units_out[0:3]=='rad'):
+            width *= 2.0*np.pi
+            werr  *= 2.0*np.pi
+        elif(units_out[0:3]=='deg'):
+            width *= 360.0
+            werr  *= 360.0
+        elif(units_out=='cos_phi'):
+            phi = 0.5 * width * 2.0*np.pi 
+            phi_err = 0.5 * werr * 2.0*np.pi
+            width, werr = rad_to_cos_phi(phi, phi_err)
+    elif(units_in[0:3]=='rad'):
+        if(units_out=='phase'):
+            width /= 2.0*np.pi
+            werr  /= 2.0*np.pi
+        elif(units_out[0:3]=='deg'):
+            width *= 180.0/np.pi
+            werr  *= 180.0/np.pi
+        elif(units_out=='cos_phi'):
+            phi = 0.5 * width 
+            phi_err = 0.5 * werr
+            width, werr = rad_to_cos_phi(phi, phi_err)
+    elif(units_in[0:3]=='deg'):
+        if(units_out=='phase'):
+            width /= 360.0
+            werr  /= 360.0
+        elif(units_out[0:3]=='rad'):
+            width *= np.pi/180.0
+            werr  *= np.pi/180.0
+        elif(units_out=='cos_phi'):
+            phi = 0.5 * width * np.pi/180.0
+            phi_err = 0.5 * werr * np.pi/180.0
+            width, werr = rad_to_cos_phi(phi, phi_err)
 
 # Create data packsg in dictionary form
     width_data = {'mjd':mjd, 'width':width, 'werr':werr}
+    if(header_line_exists):
+        width_data['psr'] = psr_name
+        width_data['percent'] = percent_height
+        width_data['phase'] = phase_range
 
 # If we want to adjust widths by comparing means of a reference width file and 
 # subtracting by difference of means, then user must provide a reference width 
@@ -403,27 +486,12 @@ def read_widths(width_file, rfile=None):
 
     return width_data
 
+    
+    
+def read_par(par_file, file_format='tempo1'):
+#    def __init__(self, par_file, file_format='tempo1'):
 
 
-
-def read_par(par_file,file_format='tempo1'):
-    
-# define an exception that will be used if the arguments are bad:
-    class ArgError(Exception):
-        """Exception called when something is wrong with one of the arguments
-        passed to a function
-    
-        Attributes:
-            name    -- argument name
-            value   -- argument value given by user
-            message -- explanation of the error
-        """
-        def __init__(self, name, value):
-            self.name = name
-            self.value = value
-            self.output = "Argument \'"+value+"\' to \'"+name+ \
-                "\' keyword is not valid."
-    
 # Check that input file_format is either tempo1 or tempo2
 # can be given as:
 #    "tempo1", "tempo2", "t1", "t2", "1", or "2", and case-insensitive
@@ -451,7 +519,7 @@ def read_par(par_file,file_format='tempo1'):
         file_format = 'tempo2'
 
     print "Parameter file format: ", file_format 
-    
+
 # Open par file
     try:
         f_par = open(par_file,'r')
@@ -471,7 +539,7 @@ def read_par(par_file,file_format='tempo1'):
     f_len = len(lines)
 
 # Here is a (somewhat exhaustive) list of possible par file parameters:
-    
+
 
 # Parse each line
 #    param_name = ['psr', 'raj', 'decj', 'pmra', 'pmdec', 'px', 'f', \
@@ -492,6 +560,7 @@ def read_par(par_file,file_format='tempo1'):
 ##    temp_params = []
 # make a list as long as the param list and fill with empty strings:
     param_val = ['' for ip in range(len(param_name))]
+    param_fit = [False for ip in range(len(param_name))]
 # Write first two columns to separate temporary variables
     for cur_line in lines:
         field = cur_line.split()
@@ -504,6 +573,13 @@ def read_par(par_file,file_format='tempo1'):
 # convert first column to lowercase
             param = field[0].lower()
             value = field[1]
+            if(len(field) > 2):
+                if(field[2] == '1'):
+                    fit = True
+                else:
+                    fit = False
+            else:
+                fit=False
             ## print "param = ", param, ", value = ", value
 # change 'e' to 'ecc' if this is a tempo1 par file:
             if (file_format == 'tempo1' and param == 'e'): param = 'ecc' 
@@ -535,7 +611,9 @@ def read_par(par_file,file_format='tempo1'):
 # If we find the parameter that corresponds to the official list of names...
             elif (param_name.count(param)):
 # ...then enter it into corresponding element in value array:
+#setattr(self, param, )
                 param_val[param_name.index(param)] = value
+                param_fit[param_name.index(param)] = fit
             else:
                 print "Unrecognized parameter "+param+".  Continuing for now..."
 
@@ -572,7 +650,7 @@ def read_par(par_file,file_format='tempo1'):
 # param names as we want them to be stored (If only have jname or bname, not
 # sure how to get other), and make separate mappings for tempo1 and tempo2 
 # formats
-    
+
 
 #    t1_params = ['psr', 'raj', 'decj', 'pmra', 'pmdec', 'px', 'f', \
 #                     'pepoch', 'start', 'finish', 'dm', 'ephem', 'clk', \
@@ -581,11 +659,41 @@ def read_par(par_file,file_format='tempo1'):
 #                     'eps1', 'eps2', 'omdot', 'pbdot', 'gamma', 'm2', 'sini']
 
 
-        
+    
 
 # Close par file
     f_par.close()
 
     print "File", par_file, "closed"
-    
-    return params
+
+#    return params
+    return param_name, param_val, param_fit
+
+
+
+#class f0(real):
+#    def __init__(self, f0):
+#        super(self).__init__(f0)
+        
+def read_dmx(dmx_file):     
+
+    # Open residual file
+    try:
+        f_dmx = open(dmx_file,'r')
+    except IOError as (errno, strerror):
+        if (errno == 2):  # file not found
+            print "IOError ({0}): File".format(errno), dmx_file, "not found"
+        else:
+            print "IOError ({0}): {1}".format(errno, strerror)
+            exit
+        
+    print "File", dmx_file, "open."
+        
+    mjd, delta_dm, delta_dm_err = \
+        np.loadtxt(f_dmx, dtype='double', comments='#', 
+                   usecols=(0, 1, 2), unpack=True)        
+
+# Create data packsg in dictionary form
+    dmx_data = {'mjd':mjd, 'delta_dm':delta_dm, 'delta_dm_err':delta_dm_err}
+
+    return dmx_data

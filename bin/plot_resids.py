@@ -20,9 +20,8 @@ def get_opt(progname):
      parser.add_argument('resfile', 
                          nargs='?',
                          default='c.tmp',
-                         help='input residual data file')
+                         help='input residual data files')
      parser.add_argument('--infofile',
-                         nargs=1,
                          help='input info data file to distinguish data sets from tempo1')
      parser.add_argument('--outfile',
                          nargs='?',
@@ -33,11 +32,10 @@ def get_opt(progname):
                          nargs='*',
                          help='info numbers/values to plot based on info file (tempo1), or telescope IDs/flag values (tempo2)')
      parser.add_argument('--infoflag',
-                         nargs=1,
                          help='use this flag\'s arguments to for colour-coding with tempo2 residuals')
      parser.add_argument('--xunits',
                          nargs=1,
-                         default=['mjd'],
+                         default=['year'],
                          choices=['mjd', 'mjd0', 'year', 'orbphase', 'serial'],
                          help='units of x axis')
      parser.add_argument('--yunits',
@@ -59,7 +57,15 @@ def get_opt(progname):
                           action='store_true',
                           default=False,
                           help='Residual file comes from tempo2 run')
-     
+     parser.add_argument('--binsize',
+                         type=float,
+                         help='Size in x axis units to bin data')
+     parser.add_argument('--resoffset',
+                         nargs='*',
+                         type=float,
+                         default=0.,
+                         help='Offset residuals from previous set by this amount.  Either a scalar value or a list of values of length equal to (number of info IDs - 1)')
+
 
      args=parser.parse_args()
 
@@ -70,10 +76,10 @@ def get_opt(progname):
           if(args.info):
                print 'No info file given.  Will ignore --info command line option.'
      else:
-          args.infofile = args.infofile[0]  # otherwise stored as a list...
+          args.infofile = args.infofile  # otherwise stored as a list...
 
      if(args.infoflag):
-          args.infoflag = '-'+args.infoflag[0]
+          args.infoflag = '-'+args.infoflag
 
      if(args.xunits): # true for now, for xunits being only one value
           args.xunits = args.xunits[0]
@@ -84,27 +90,34 @@ def get_opt(progname):
      print 'INFO = ', args.info
 
      # xlim in correct order
-     if(args.xlim):
+     if(args.xlim!=None):
           try:
                xlim_backwards = (args.xlim[0] > args.xlim[1])
                if(xlim_backwards):
                     raise ArgError(progname, '--xlim', 0)
           except ArgError, err:
                print err.output
-          if(args.xlim!=None):
-               args.xlim=(args.xlim[0], args.xlim[1])
+          #if(args.xlim!=None):
+          args.xlim=(args.xlim[0], args.xlim[1])
 
      # ylim in correct order
-     if(args.ylim):
+     if(args.ylim!=None):
           try:
                ylim_backwards = (args.ylim[0] > args.ylim[1])
                if(ylim_backwards):
                     raise ArgError(progname, '--ylim', 0)
           except ArgError, err:
                print err.output
-          if(args.ylim!=None):
-               args.ylim=(args.ylim[0], args.ylim[1])
+          #if(args.ylim!=None):
+          args.ylim=(args.ylim[0], args.ylim[1])
 
+     if(args.binsize!=None):
+          print 'Binning data along x axis with bins of size ', args.binsize, 'in ', args.xunits
+#          args.binsize=args.binsize[0]
+
+     if(args.resoffset!=None):
+          print 'Offsetting each telescope data set by ', args.resoffset, args.yunits
+#          args.resoffset = args.resoffset[0]
 
      return args
 
@@ -148,13 +161,14 @@ def main():
      else:
           if(args.info==[]):
                args.info=None
+          
 
-     print 'xlim = ', args.xlim
-     plot_resid(resid_data, info_plot=args.info,
-                canvassize=fig_size,
+     print 'resoffset = ', args.resoffset
+     plot_resid(resid_data, info_plot=args.info, binsize=args.binsize,
+                canvassize=fig_size, symsize=2.0,
                 xunits=args.xunits, yunits=args.yunits, 
-                xlim=args.xlim,
-                ylim=args.ylim)
+                xlim=args.xlim, ylim=args.ylim, gridlines=[0.],
+                resoffset=args.resoffset)
 
      if(args.outfile):
           plt.savefig(plot_file)

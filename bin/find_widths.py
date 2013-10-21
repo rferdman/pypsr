@@ -13,6 +13,7 @@ from psrread import *
 from psrprof import *
 from psrplot import *
 import argparse
+import warnings
 
 
 xtick_scale = 10000.
@@ -51,7 +52,6 @@ def get_opt(progname):
                          nargs='+',
                          help='Input ascii profile files')
      parser.add_argument('--percent',
-                         nargs='?',
                          type=float,
                          default=50.0,
                          help='Percent pulse height')
@@ -61,35 +61,39 @@ def get_opt(progname):
                          default=None,
                          help='Phase at which to cut profile for calculating width on separate components')
      parser.add_argument('--npolyfit',
-                         nargs='?',
                          type=int,
                          default=12,
                          help='Number of points on each side of phase corresponding to chosen fractional pulse height to include in polynomial fitting, so there are a total of 2*npolyfit + 1 points used')
      parser.add_argument('--npolyorder',
-                         nargs='?',
                          type=int,
                          default=None, # be sure to set this if None
                          help='Force the order of polynomial to attempt to fit to data points. Default is to use n_poly_fit-1 points')
      parser.add_argument('--niter',
-                         nargs='?',
                          type=int,
                          default=32768,
                          help='Number of bootstrap iterations to run in width determination')
      parser.add_argument('--nhistbins',
-                         nargs='?',
                          type=int,
                          default=32,
                          help='Number of bins to use in histogram for calculating widths and width errors')
      parser.add_argument('--ntestphase',
-                         nargs='?',
                          type=int,
                          default=4,
                          help='Number of points to include on each side of estimated fractional pulse height phase when performing root-finding to determine exact phase value')
      parser.add_argument('--peakphase',
-                         nargs='?',
                          type=float,
                          default=None,
                          help='Force phase of profile peak, for the purposes of calculating the phase corresponding to chosen fractional pulse height')
+     parser.add_argument('--peakheight',
+                         type=float,
+                         default=None,
+                         help='Force phase of profile peak, for the purposes of calculating the phase corresponding to chosen fractional pulse height')
+     parser.add_argument('--templatepeak',
+                         help='Use an ascii template file to which to shift input and scale profiles and calculate peak phase and height for which subsequent which width calculations are made')
+     parser.add_argument('-o', '--outbase', dest='outbase',
+                         default=None,
+                         help='Base output file name.  For width data file, will append \'.dat\'; For plotted figure, will append \'.png\', etc.')
+                         
      
      args=parser.parse_args()
 
@@ -122,6 +126,7 @@ def main():
      n_hist_bins = args.nhistbins
      n_pts_test = args.ntestphase
      peak_phase = args.peakphase
+     peak_height = args.peakheight
      
 
 ##     in_files = ['/Users/ferdman/Work/pulsar/0737-3039A/profs/add_campaigns/0737-3039A.20??.??.add.asc']
@@ -235,11 +240,12 @@ def main():
                prof_in['phase'] = prof_data['phase'][phase_cut_bins[i_phase]:phase_cut_bins[i_phase+1]-1]
                
                width[i_prof,i_phase], width_err[i_prof,i_phase], A, pdf_width, x_width = \
-                   get_width(prof_in, psr_name, percent_height, x_peak=peak_phase, \
-                                  n_pts_fit=n_poly_fit, n_order=n_poly_order, \
-                                  n_omit=n_pts_omit, n_test_fit=n_pts_test, \
-                                  n_boot=n_bootstrap, hist_bins=n_hist_bins, \
-                                  return_more=True)
+                   get_width(prof_in, psr_name, percent_height, 
+                             x_peak=peak_phase, y_peak=peak_height,
+                             n_pts_fit=n_poly_fit, n_order=n_poly_order, 
+                             n_omit=n_pts_omit, n_test_fit=n_pts_test, 
+                             n_boot=n_bootstrap, hist_bins=n_hist_bins, 
+                             return_more=True)
                
                # Plot gaussian fit to bootstrap histograms as we go along as a grid of subplots:
                fig = plt.figure(i_phase)
@@ -276,7 +282,10 @@ def main():
 #      print "phase_cuts = ", phase_cuts
      for i_phase in np.arange(len(phase_cut_bins) - 1):
           width_data = {'mjd':mjd_width, 'width':width[:, i_phase], 'werr':width_err[:, i_phase]}
-          outfile_root = '{0}.w{1:.1f}.{2:3.1f}_{3:3.1f}'.format(psr_name, percent_height, phase_cuts[i_phase], phase_cuts[i_phase+1])
+          if(args.outbase==None):
+               outfile_root = '{0}.w{1:.1f}.{2:3.1f}_{3:3.1f}'.format(psr_name, percent_height, phase_cuts[i_phase], phase_cuts[i_phase+1])
+          else:
+               outfile_root = args.outbase
           # Plot widths we just calculated
           plot_widths(width_data, yunits='deg')
           plt.savefig(outfile_root+'.png')
@@ -323,9 +332,14 @@ def main():
           # Output bootstrap histogram plots:
           plt.savefig(outfile_root+'.boot_fit.png')
 
-    # Now output widths to file.
-          outfile = '{0}.w{1:.1f}.{2:3.1f}_{3:3.1f}'.format(psr_name, percent_height, phase_cuts[i_phase], phase_cuts[i_phase+1])+'.dat'
+    # Now output widths to file.    
+          outfile = '{0}.w{1:.1f}.{2:3.1f}_{3:3.1f}'.format(psr_name, 
+              percent_height, phase_cuts[i_phase], phase_cuts[i_phase+1])+'.dat'
           f_out = open(outfile, 'w')
+    # First include a header line containing PSR name, percent height, 
+    # and phase range (which will usually be 0.0 to 1.0)
+          f_out.write('# {0}   w{1:.1f}   {2:3.1f}  {3:3.1f}\n'.format(psr_name, 
+              percent_height, phase_cuts[i_phase], phase_cuts[i_phase+1])
           np.savetxt(outfile_root+'.dat', \
                           np.transpose((width_data['mjd'], width_data['width'], width_data['werr'])), \
                           fmt='%-23.15f %14.10f   %14.10f') # x,y,z equal sized 1D arrays

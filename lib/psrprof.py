@@ -141,9 +141,10 @@ def norm(prof_data, duty):
 # fit and interpolation using n_interp_pts points around the phase bin 
 # corresponding to the given height.  The error on eahc side of the profile
 # will be added in quadrature.
-def get_width(prof_data, psr_name, percent_height, x_peak=None, \
-                   n_pts_fit=12, n_order=6, n_omit=3, n_test_fit=4, \
-                   n_boot=16384, hist_bins=64, return_more=False):
+def get_width(prof_data, psr_name, percent_height, 
+              x_peak=None, y_peak=None, 
+              n_pts_fit=12, n_order=6, n_omit=3, n_test_fit=4, 
+              n_boot=16384, hist_bins=64, return_more=False):
 
      PHASE_TOL = 0.005
      # Ignore warnings about polynomial rank:
@@ -161,12 +162,13 @@ def get_width(prof_data, psr_name, percent_height, x_peak=None, \
      duty = get_duty(psr_name)
      prof_data['i'] = remove_base(prof_data['i'], duty)
 #     x_peak, y_peak = get_peak(prof_data, n_pts_fit=10, n_order=19, n_test_fit=4)
-     x_peak, y_peak = get_peak(prof_data, x_peak=x_peak, 
-                               n_pts_fit=12, n_order=16, n_test_fit=5)
-     print "x_peak, y_peak = ", x_peak, y_peak
-     if(x_peak < 0):
-          print 'Could not choose one.  Exiting: '
-          exit()
+     if(y_peak == None):
+          x_peak, y_peak = get_peak(prof_data, x_peak=x_peak, 
+                                    n_pts_fit=12, n_order=16, n_test_fit=5)
+          print "x_peak, y_peak = ", x_peak, y_peak
+          if(x_peak < 0):
+               print 'Could not choose one.  Exiting: '
+               exit()
 
      height = 0.01*percent_height*y_peak
 #     peak_height = np.amax(prof_data['i'])
@@ -350,12 +352,14 @@ def get_peak(prof_data, x_peak=None, n_pts_fit=8, n_order=3, n_test_fit=2, retur
      if (warn==False):
           warnings.simplefilter('ignore', np.RankWarning)
 
+     plt.ion()
+
      n_bin_prof = len(prof_data['i'])
 
      i_peak = np.argmax(prof_data['i'])
      rough_peak_x = prof_data['phase'][i_peak]
      rough_peak_y = prof_data['i'][i_peak]
-     print 'ROUGH PEAK = ', [rough_peak_x, rough_peak_y]
+     # print 'ROUGH PEAK = ', [rough_peak_x, rough_peak_y]
 
 # Make test profile, adding wrapped points before and after, just in case.
 ##     testprof = np.append(prof_data['i'][n_bin_prof-n_pts_fit:n_bin_prof], prof_data['i'])
@@ -368,16 +372,16 @@ def get_peak(prof_data, x_peak=None, n_pts_fit=8, n_order=3, n_test_fit=2, retur
 
 # Now choose points to perform polynomial fit; take into account possible
 # phase wrap in used part of profile
-     print 'i_peak = ', i_peak
-     print 'n_pts_fits  = ', n_pts_fit
-     print 'i_peak - n_pts_fit = ', i_peak - n_pts_fit 
-     print 'max phase = ', np.max(prof_data['phase'])
+     #  print 'i_peak = ', i_peak
+     #  print 'n_pts_fits  = ', n_pts_fit
+     #  print 'i_peak - n_pts_fit = ', i_peak - n_pts_fit 
+     #  print 'max phase = ', np.max(prof_data['phase'])
      # In all cases, bring peak region we are using to ~0.5 in phase.
      # It seems that polyfit's results are affected when close to zero 
      # for some reason...     
      artificial_offset = (0.5 - rough_peak_x)
      if(i_peak-n_pts_fit < 0):
-          print 'BELOW ZERO'
+          ## print 'BELOW ZERO'
           n_overlap = np.abs(i_peak-n_pts_fit)
           x_peak_pts = np.append(
                prof_data['phase'][n_bin_prof - n_overlap : n_bin_prof] - 1.0,
@@ -387,7 +391,7 @@ def get_peak(prof_data, x_peak=None, n_pts_fit=8, n_order=3, n_test_fit=2, retur
                prof_data['i'][n_bin_prof - n_overlap : n_bin_prof],
                prof_data['i'][0:i_peak+n_pts_fit+1])
      elif(i_peak + n_pts_fit >= n_bin_prof):
-          print 'ABOVE N_BIN_PROF'
+          ## print 'ABOVE N_BIN_PROF'
           n_overlap = np.abs(i_peak + n_pts_fit - n_bin_prof)
           x_peak_pts = np.append(
                prof_data['phase'][i_peak-n_pts_fit:n_bin_prof],
@@ -397,14 +401,14 @@ def get_peak(prof_data, x_peak=None, n_pts_fit=8, n_order=3, n_test_fit=2, retur
                prof_data['i'][i_peak-n_pts_fit:n_bin_prof],
                prof_data['i'][0:n_overlap])
      else:
-          print 'NORMAL'
+          ## print 'NORMAL'
           x_peak_pts = prof_data['phase'][i_peak-n_pts_fit : i_peak+n_pts_fit+1]+ \
                artificial_offset
           y_peak_pts = prof_data['i'][i_peak-n_pts_fit : i_peak+n_pts_fit+1]
      
-     print 'n_pts   = ', len(x_peak_pts)
-     print 'n_bin   = ', n_bin_prof
-     print 'n_order = ', n_order
+     ## print 'n_pts   = ', len(x_peak_pts)
+     ## print 'n_bin   = ', n_bin_prof
+     ## print 'n_order = ', n_order
 # Perform polynomial fit
      poly_peak = np.polyfit(x_peak_pts, y_peak_pts, n_order)
 
@@ -413,7 +417,7 @@ def get_peak(prof_data, x_peak=None, n_pts_fit=8, n_order=3, n_test_fit=2, retur
      i_new_peak = np.argmax(y_poly_test)
      x_new_peak = x_peak_pts[i_new_peak]
 #     plt.plot(prof_data['phase'],prof_data['i'])
-     print 'x_peak_pts  = ', x_peak_pts
+     ## print 'x_peak_pts  = ', x_peak_pts
 #     print 'y_peak_pts  = ', y_peak_pts
 #     print 'y_poly_test = ', y_poly_test
      plt.plot(x_peak_pts, y_peak_pts, 'o')
@@ -426,10 +430,10 @@ def get_peak(prof_data, x_peak=None, n_pts_fit=8, n_order=3, n_test_fit=2, retur
 # n_test_fit in units of phase
      n_test_phase = (float(n_test_fit)/(float(n_bin_prof)))#/np.amax(prof_data['phase'])))
 # Find roots of derivative around peak, in range given by user
-     print 'x1 = ', x_new_peak - n_test_phase
-     print 'x2 = ', x_new_peak + n_test_phase
-     print 'xmin = ', np.min(x_peak_pts)
-     print 'xmax = ', np.max(x_peak_pts)
+     ## print 'x1 = ', x_new_peak - n_test_phase
+    ##  print 'x2 = ', x_new_peak + n_test_phase
+     ## print 'xmin = ', np.min(x_peak_pts)
+     ## print 'xmax = ', np.max(x_peak_pts)
      if(x_peak==None):
           x_peak = real_roots(
                poly_peak_deriv, 
