@@ -13,7 +13,7 @@ def main():
 
 # First, read in profile data file, and assign each column to a separate
 # numpy array     
-     prof_data = read_asc_prof(prof_file)
+     prof_data = read_asc_prof(prof_file, ionly=True)
 #     print res_data['mjd']
 
 # meaningThe following means that the 2nd argument is the 
@@ -23,9 +23,9 @@ def main():
      else:
           plot_file = 'profile.png'
 
-     plot_prof(prof_data, hgrid=True, vgrid=True)
-     plt.show()
-#     plt.savefig(plot_file)
+     plot_prof(prof_data) #, hgrid=True, vgrid=True)
+#    plt.show()
+     plt.savefig(plot_file)
 
 
 main()

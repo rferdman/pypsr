@@ -98,11 +98,12 @@ def read_resid(resid_file, tempo2=False, info_file=None, info_flag=None):
 # Read in lines of file, and cast each column into appropriate data types
          n_tempo2_cols = 9 # Standard, non-flag number of columns in tempo2 residual file
          file_lines = f_res.readlines()
-         resid_arr = [line.split() for line in file_lines]
+         resid_arr = [line.split() for line in file_lines[0:len(file_lines)-2]]
          # Get rid of lines like "JUMP", "SKIP", "NO SKIP", etc.
 
 # Will assume that there are 8 columns in file as commented out above:
          n_rows = len(resid_arr)
+         print 'NROWS = ', n_rows
          min_n_col = np.amin(np.array([len(resid_arr[i]) for i in np.arange(n_rows)]))
          max_n_col = np.amax(np.array([len(resid_arr[i]) for i in np.arange(n_rows)]))
 #         n_col = len(resid_arr[0])
@@ -301,7 +302,6 @@ def read_resid(resid_file, tempo2=False, info_file=None, info_flag=None):
                        'obsfreq':obsfreq, \
                        'info':info_id, 'info_val':info_val, \
                        'info_instr':info_instr}
-
     
     f_res.close()
 
@@ -314,7 +314,7 @@ def read_resid(resid_file, tempo2=False, info_file=None, info_flag=None):
 
 
 # Routine that reads in asp-styles ascii profile
-def read_asc_prof(prof_file):
+def read_asc_prof(prof_file, ionly=False):
     
     # Open ascii profile file
     try:
@@ -327,11 +327,20 @@ def read_asc_prof(prof_file):
             return
         
     print "File", prof_file, "open."
-      
-    bin, I, Q, U, V = \
-        np.loadtxt(f_prof, dtype='double', comments='#', usecols=(0,1,2,3,4), 
+    
+    if(ionly): # Only read Stokes I  
+        bin, I = \
+            np.loadtxt(f_prof, dtype='double', comments='#', usecols=(0,1), 
                    unpack=True)
-      
+        # Set Q, U, V to be zeroes in this case
+        Q=np.zeros_like(I)
+        U=np.zeros_like(I)
+        V=np.zeros_like(I)
+    else:
+        bin, I, Q, U, V = \
+            np.loadtxt(f_prof, dtype='double', comments='#', usecols=(0,1,2,3,4), 
+                   unpack=True)
+     
     phase = bin/(len(bin)-1)
 
     prof_data = {'phase':phase, 'i':I, 'q':Q, 'u':U, 'v':V}
@@ -488,9 +497,11 @@ def read_widths(width_file, rfile=None, units_in='deg', units_out='deg'):
 
     
     
-def read_par(par_file, file_format='tempo1'):
+def read_par(par_file, file_format='tempo1', return_tuple=False, verbose=False):
 #    def __init__(self, par_file, file_format='tempo1'):
 
+    maxf=16 # maximum number of frequency derivatives
+    maxdm=8 # maximum number of dm derivatives
 
 # Check that input file_format is either tempo1 or tempo2
 # can be given as:
@@ -518,7 +529,8 @@ def read_par(par_file, file_format='tempo1'):
     else:
         file_format = 'tempo2'
 
-    print "Parameter file format: ", file_format 
+    if (verbose==True):
+        print "Parameter file format: ", file_format 
 
 # Open par file
     try:
@@ -530,7 +542,8 @@ def read_par(par_file, file_format='tempo1'):
             print "IOError ({0}): {1}".format(errno, strerror)
         return
 
-    print "File", par_file, "open.  Format is "+file_format+"."
+    if (verbose==True):
+        print "File", par_file, "open.  Format is "+file_format+"."
 
 # Read file, putting each line as a separate string array element
     lines = f_par.readlines()
@@ -548,19 +561,26 @@ def read_par(par_file, file_format='tempo1'):
                        'ntoa', 'tres', 'tzrmjd', 'tzrfrq', 'tzrsite', \
                        'nits', 'binary', 'pb', 'ecc', 'om', 't0', 'a1', \
                        'tasc', 'eps1', 'eps2', 'omdot', 'pbdot', 'gamma', \
-                       'm2', 'sini', 'shapmax']
+                       'm2', 'sini', 'shapmax', 'posepoch', 'dmepoch', 'ephver', \
+                       'glep', 'glph', 'glf0', 'glf1']
     param_type = ['s',   's',   's',    'f',    'f',     'f',  'f', \
                        'f',      'f',     'f',      'f',  's',    's', \
                        'd',    'f',    'f',      'f',      's',  \
                        'd',    's',      'f',  'f',   'f',  'f',  'f', \
                        'f',    'f',    'f',    'f',     'f',     'f', \
-                       'f',   'f',   'f']
-    f_val = ['0.0' for i in range(16)] # max 15 f derivatives
-    dm_val = ['0.0' for i in range(8)] # max 7 dm derivatives
+                       'f',   'f',   'f',        'f',         'f',       'd', \
+                       'f',    'f',    'f',    'f']
+    f_val = [0.0 for i in range(maxf)] # max 15 f derivatives
+    f_err = [-1.0 for i in range(maxf)] # max 15 f derivatives
+    f_fit = [False for i in range(maxf)] # max 15 f derivatives
+    dm_val = [0.0 for i in range(maxdm)] # max 7 dm derivatives
+    dm_err = [-1.0 for i in range(maxdm)] # max 7 dm derivatives
+    dm_fit = [False for i in range(maxdm)] # max 7 dm derivatives
 ##    temp_params = []
 # make a list as long as the param list and fill with empty strings:
     param_val = ['' for ip in range(len(param_name))]
     param_fit = [False for ip in range(len(param_name))]
+    param_err = ['' for ip in range(len(param_name))]
 # Write first two columns to separate temporary variables
     for cur_line in lines:
         field = cur_line.split()
@@ -573,13 +593,25 @@ def read_par(par_file, file_format='tempo1'):
 # convert first column to lowercase
             param = field[0].lower()
             value = field[1]
+            fit = False
+            error = '-1'
+            ################### NEED TO DISTINGUISH BETWEEN TEMPO1 ANND 2,AND ALSO GET UNCERTAINTIES!!! #######
             if(len(field) > 2):
                 if(field[2] == '1'):
                     fit = True
-                else:
-                    fit = False
-            else:
-                fit=False
+                if(file_format == 'tempo1'):
+                    if(len(field) == 4):
+                        error = field[3]
+                else:  # tempo2 format
+                    if(len(field) == 3 and fit==False):
+                        error = field[2]
+                    elif(len(field) == 4):
+                        error = field[3]
+                        #print param, ' ', value, ' ', error, ' ', fit
+#                else:
+#                    fit = False
+#            else:
+#                fit=False
             ## print "param = ", param, ", value = ", value
 # change 'e' to 'ecc' if this is a tempo1 par file:
             if (file_format == 'tempo1' and param == 'e'): param = 'ecc' 
@@ -588,60 +620,87 @@ def read_par(par_file, file_format='tempo1'):
             if (file_format == 'tempo2' and param == 'psrj'): param = 'psr' 
 ##            temp_params.append( (param, value) )
 # If param if rot. frequency or a derivative...
-            if (param[0] == 'f' and len(param) < 3):
+            if (param[0].startswith('f') and len(param) < 4):  # < 4 to avoid the "finish" parameter
 # ...determine derivative...
                 deriv = int(param[1:])
 # ...and finally place value in appropriate element of f_val array:
                 if (deriv >= 0 and deriv < len(f_val)):
-                    f_val[deriv] = value
+                    f_val[deriv] = float(value)
+                    f_err[deriv] = float(error)
+                    f_fit[deriv] = fit
+                    #print param, ' ', f_val[deriv], ' ', f_err[deriv], ' ', f_fit[deriv]
 # If param if DM or derivative...
-            elif (param[0:2] == 'dm' and len(param) < 5):
+            elif (param.startswith('dm') and len(param) <= 5):
                 if(len(param) == 2): # i.e. actual DM
 # ...place actual DM in first element of dm_val array:
-                    dm_val[0] = value
+                    dm_val[0] = float(value)
+                    dm_err[0] = float(error)
+                    dm_fit[0] = fit
                 else: # i.e. one of the derivatives
-                    deriv = int(param[2:])
-# ... place in appropriate place in dm_val array if derivative:
-                    if (deriv > 0 and deriv < len(dm_val)):
-                        dm_val[deriv] = value
-                    else:
-                        print "Error: DM derivative in par file is either", \
-                            "zero or larger than the maximum of", len(dm_val)
-                        return
+                    if(param[2] != 'x'):
+                        deriv = int(param[2:])
+    # ... place in appropriate place in dm_val array if derivative:
+                        if (deriv > 0 and deriv < len(dm_val)):
+                            dm_val[deriv] = float(value)
+                            dm_err[deriv] = float(error)
+                            dm_fit[deriv] = fit
+                        else:
+                            print "Error: DM derivative in par file is either", \
+                                "zero or larger than the maximum of", len(dm_val)
+                            return
+
+# HERE AT SOME POINT INCLUDE GLITCH PARAMETERS, IN AN ARRAY FORMAT AS WITH F AND DM
+
 # If we find the parameter that corresponds to the official list of names...
             elif (param_name.count(param)):
 # ...then enter it into corresponding element in value array:
 #setattr(self, param, )
-                param_val[param_name.index(param)] = value
-                param_fit[param_name.index(param)] = fit
+                param_ind = param_name.index(param)
+                if (param_type[param_ind] == 'f'):
+                    value = float(value)
+                elif (param_type[param_ind] == 'd'):
+                    value = int(value)
+                param_val[param_ind] = value
+                param_fit[param_ind] = fit
+                param_err[param_ind] = float(error)
             else:
                 print "Unrecognized parameter "+param+".  Continuing for now..."
 
-# Now insert f_val and dm_val lists into appropriate place in param_val array
+# Now insert f_val and dm_val lists into appropriate place in param_val array, keeping 
     ## print "f_val =", f_val
     ## print "dm_val =", dm_val
     f_ind = param_name.index('f')
-    del param_name[f_ind]
-    del param_val[f_ind]
-    for i_deriv in range(len(f_val)):
-        f_name='f{0}'.format(i_deriv)
-        param_name.insert(f_ind+i_deriv, f_name)
-        param_val.insert(f_ind+i_deriv, f_val[i_deriv])
+    param_val[f_ind] = np.array(f_val)
+    param_fit[f_ind] = np.array(f_fit)
+    param_err[f_ind] = np.array(f_err)
+    
+#    del param_name[f_ind]
+#    del param_val[f_ind]
+#    for i_deriv in range(len(f_val)):
+#        f_name='f{0}'.format(i_deriv)
+#        param_name.insert(f_ind+i_deriv, f_name)
+#        param_val.insert(f_ind+i_deriv, f_val[i_deriv])
 
     dm_ind = param_name.index('dm')
-    del param_name[dm_ind]
-    del param_val[dm_ind]
-    for i_deriv in range(len(dm_val)):
-        if (i_deriv == 0):
-            dm_name='dm'
-        else:
-            dm_name='dm{0}'.format(i_deriv)
-        param_name.insert(dm_ind+i_deriv, dm_name)
-        param_val.insert(dm_ind+i_deriv, dm_val[i_deriv])
+    param_val[dm_ind] = np.array(dm_val)
+    param_fit[dm_ind] = np.array(dm_fit)
+    param_err[dm_ind] = np.array(dm_err)
+#    del param_name[dm_ind]
+#    del param_val[dm_ind]
+#    for i_deriv in range(len(dm_val)):
+#        if (i_deriv == 0):
+#            dm_name='dm'
+#        else:
+#            dm_name='dm{0}'.format(i_deriv)
+#        param_name.insert(dm_ind+i_deriv, dm_name)
+#        param_val.insert(dm_ind+i_deriv, dm_val[i_deriv])
+
+
 
 #    print temp_params
 #    params = dict(temp_params)
     params = dict(zip(param_name, param_val))
+#    params = dict(zip(param_name, param_val, param_err, param_fit))
 ##    print "List of parameters in file "+par_file+":\n"
 ##    for p, v in params.iteritems():
 ##        print p, v
@@ -664,10 +723,14 @@ def read_par(par_file, file_format='tempo1'):
 # Close par file
     f_par.close()
 
-    print "File", par_file, "closed"
+    if (verbose==True):
+        print "File", par_file, "closed"
 
 #    return params
-    return param_name, param_val, param_fit
+    if(return_tuple):
+        return param_name, param_val, param_fit, param_err
+    else:
+        return params
 
 
 

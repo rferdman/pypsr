@@ -8,6 +8,7 @@ from matplotlib.ticker import FormatStrFormatter
 from datetime import date, datetime, timedelta
 import mjd
 from psrcalc import bin_data
+from pdfplot import get_prob_2D_levels
 
 
 # This routine will bin resids, and recalculate the error in binned residuals.
@@ -109,10 +110,13 @@ def plot_resid(resid_data, info_plot=None, canvassize=None,
                axis_limits=None, binsize=None, resoffset=0.,
                preres=False, xunits='year', yunits='us', 
                xticks=True, yticks=True, xlabel=True, ylabel=True, 
-               sym='o', symsize=1.8, colour='black', csize=1.3, 
-               xlim=None, ylim=None, figtext=None, gridlines=None):
+               sym='o', symsize=1.8, colour=None, csize=1.3, 
+               xlim=None, ylim=None, figtext=None, gridlines=None,
+               ticklabelsize=18, axislabelsize=18):
 #               mjdlim=None, yearlim=None, orbphaselim=None):
 
+     
+     
      
      # First determine if certain keywords are one-dimensional.  If so, 
      # will need to list-ify them
@@ -269,12 +273,12 @@ def plot_resid(resid_data, info_plot=None, canvassize=None,
      # mjd0 will subtract the nearest 100 of the smallest mjd value from the 
      # mjd arrays
           if(xunits[i_plot]=='mjd0'):
-               min_mjd = np.amin(res_data['mjd'])
-               mjdint = np.floor(min_mjd)
-               res_data['mjd0'] = res_data['mjd'] - mjdint
+              min_mjd = np.amin(res_data['mjd'])
+              mjdint = np.floor(min_mjd)
+              res_data['mjd0'] = res_data['mjd'] - mjdint
 
           if(xunits[i_plot]=='year'):
-               res_data['year'] = \
+              res_data['year'] = \
                    np.array([mjd.mjdtoyear(m) for m in res_data['mjd']])
 
           # Convert units based on yunits keyword
@@ -295,29 +299,32 @@ def plot_resid(resid_data, info_plot=None, canvassize=None,
 
           if (xlabel[i_plot]):          
                if(xunits[i_plot]=='serial'):               
-                    ax[i_plot].set_xlabel('Serial number', fontsize=18)
+                    ax[i_plot].set_xlabel('Serial number', fontsize=axislabelsize, labelpad=12)
                elif(xunits[i_plot]=='orbphase'):
-                    ax[i_plot].set_xlabel('Orbital phase', fontsize=18)           
+                    ax[i_plot].set_xlabel('Orbital phase', fontsize=axislabelsize, labelpad=12)           
                elif(xunits[i_plot]=='mjd'):
-                    ax[i_plot].set_xlabel('MJD', fontsize=18)
+                    ax[i_plot].set_xlabel('MJD', fontsize=axislabelsize, labelpad=12)
                elif(xunits[i_plot]=='mjd0'):
                     ax[i_plot].set_xlabel('MJD - {:d}'.format(int(mjdint)), 
-                                  fontsize=18)
+                                  fontsize=axislabelsize, labelpad=12)
                elif(xunits[i_plot]=='year'):
-                    ax[i_plot].set_xlabel('Year', fontsize=18)
+                    ax[i_plot].set_xlabel('Year', fontsize=axislabelsize, labelpad=12)
                     xmajorFormatter = FormatStrFormatter('%4d')
                     ax[i_plot].xaxis.set_major_formatter(xmajorFormatter)
 
 
           if (ylabel[i_plot]):
                if(yunits[i_plot]=='s'):
-                    ax[i_plot].set_ylabel('Residuals (s)', fontsize=18)
+                    ax[i_plot].set_ylabel('Residuals (s)', fontsize=axislabelsize, labelpad=6)
                if(yunits[i_plot]=='ms'):
-                    ax[i_plot].set_ylabel('Residuals (ms)', fontsize=18)
+                    ax[i_plot].set_ylabel('Residuals (ms)', fontsize=axislabelsize, labelpad=6)
                if(yunits[i_plot]=='us'):
-                    ax[i_plot].set_ylabel('Residuals ($\mu$s)', fontsize=18)
+                    ax[i_plot].set_ylabel('Residuals ($\mu$s)', fontsize=axislabelsize, labelpad=6)
                if(yunits[i_plot]=='ns'):
-                    ax[i_plot].set_ylabel('Residuals (ns)', fontsize=18)
+                    ax[i_plot].set_ylabel('Residuals (ns)', fontsize=axislabelsize, labelpad=6)
+
+
+          ax[i_plot].tick_params(labelsize=ticklabelsize, pad=10)
 
           if(xticks[i_plot]):
                for tick in ax[i_plot].xaxis.get_major_ticks():
@@ -343,6 +350,8 @@ def plot_resid(resid_data, info_plot=None, canvassize=None,
                for ycoord in gridlines:
                     ax[i_plot].axhline(ycoord, linestyle='--', color='black', \
                                     linewidth=0.4)
+
+        
 
      # To keep track of min and max x and y
           x_min = []
@@ -393,10 +402,17 @@ def plot_resid(resid_data, info_plot=None, canvassize=None,
                     y_min.append(np.amin(res_y - res_err))#[res_y > ylim[0]]))
                     y_max.append(np.amax(res_y + res_err))#[res_y < ylim[1]]))
                     if (n_info==1):
-
                          clr = 'black'
                     else:
-                         clr = cm.jet(float(i_info)/float(n_info-1)) 
+                         if (colour==None):
+                             clr = cm.jet(float(i_info)/float(n_info-1)) 
+                         else:
+                             if (len(colour) == n_info):
+                                 clr = colour[i_info]
+                                 print 'COLOUR = ', clr
+                             else:
+                                 print 'Error: Must use same number of colours as info numbers.  Exiting'
+                                 return
                     ax[i_plot].plot(res_x, res_y, sym, 
                                     markersize=symsize, 
                                     markeredgecolor=clr, 
@@ -406,7 +422,10 @@ def plot_resid(resid_data, info_plot=None, canvassize=None,
                                         ecolor=clr)
           else:
                n_info = 1
-               clr = colour
+               if (colour==None):
+                   clr = 'black'
+               else:
+                   clr = colour
                res_x = res_data[xunits[i_plot]]
                res_y = res_data['res']
                res_err = res_data['reserr']
@@ -544,7 +563,7 @@ def plot_prof(prof_data, canvassize=None, xticks=True, yticks=True, \
      if(figtext!=None):
           for txt in figtext:
                ax.text(txt[0], txt[1], txt[2], fontsize=10, \
-                            horizontalalignment='center', \
+                            horizontalalignment='left', \
                             verticalalignment='center')
      
     #plt.xlim(xmin, xmax)
@@ -574,7 +593,8 @@ def plot_widths(width_data, canvassize=None, msize=None, \
                      xticks=True, yticks=True, xlabel=True, ylabel=True, \
                      sym='o', colour=None, mf_colour=None, me_colour=None, \
                      csize=3, xlim=None, ylim=None, \
-                     figtext=None, gridlines=None):
+                     figtext=None, gridlines=None,
+                     ticklabelsize=18, axislabelsize=18):
 
      possible_xval = ['mjd', 'mjd0', 'year', 'serial']
      if(possible_xval.count(xval) == 0):
@@ -626,9 +646,9 @@ def plot_widths(width_data, canvassize=None, msize=None, \
 
 # Set up the plot:
      fig = plt.figure(figsize=canvassize)
-     ax = fig.add_axes([0.12, 0.1, 0.8, 0.85])
-     ax.xaxis.set_tick_params(labelsize=16)
-     ax.yaxis.set_tick_params(labelsize=16)
+     ax = fig.add_axes([0.12, 0.14, 0.86, 0.83])
+     ax.xaxis.set_tick_params(labelsize=ticklabelsize, pad=8)
+     ax.yaxis.set_tick_params(labelsize=ticklabelsize, pad=8)
      if(xlim==None):
           ax.set_xlim(xmin - 0.01*xspan, xmax + 0.01*xspan)
      else:
@@ -640,19 +660,19 @@ def plot_widths(width_data, canvassize=None, msize=None, \
 
      if (xlabel):          
           if(xval=='serial'):               
-               ax.set_xlabel('Serial number', fontsize=18)
+               ax.set_xlabel('Serial number', fontsize=axislabelsize, labelpad=12)
           elif(xval=='mjd'):
-               ax.set_xlabel('MJD', fontsize=18)
+               ax.set_xlabel('MJD', fontsize=axislabelsize, labelpad=12)
           elif(xval=='mjd0'):
-               ax.set_xlabel('MJD - {:d}'.format(int(mjdint)), fontsize=18)
+               ax.set_xlabel('MJD - {:d}'.format(int(mjdint)), fontsize=axislabelsize, labelpad=12)
           elif(xval=='year'):
                # Set formatting for years so that they have %d formatting:
                xmajorFormatter = FormatStrFormatter('%d')
-               ax.set_xlabel('Year', fontsize=18)
+               ax.set_xlabel('Year', fontsize=axislabelsize, labelpad=12)
                ax.xaxis.set_major_formatter(xmajorFormatter)
                
      if (ylabel):
-          ax.set_ylabel('Pulse width (degrees)', fontsize=18)
+          ax.set_ylabel('Pulse width (degrees)', fontsize=axislabelsize)#, labelpad=8)
 
      if(not xticks):
           for tick in ax.xaxis.get_major_ticks():
@@ -679,16 +699,16 @@ def plot_widths(width_data, canvassize=None, msize=None, \
               if (len(width_data)==1):
                   clr = 'black'
               else:
-                  clr = cm.jet(float(i_width)/float(len(width_data)-1)) 
+                  clr = cm.gist_heat(float(i_width)/float(len(width_data))) 
               
           if (type(mf_colour) is list):
                mf_clr = mf_colour[i_width]
           else:
-               mf_clr = mf_colour
+               mf_clr = clr
           if (type(me_colour) is list):
                me_clr = me_colour[i_width]
           else:
-               me_clr = me_colour
+               me_clr = clr
           #ax.plot(res[xval], res['res'], 'o', markersize=msize, color=col)
           if(gridlines!=None):
                for ycoord in gridlines:
@@ -761,16 +781,24 @@ def plot_widths(width_data, canvassize=None, msize=None, \
 
 def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None, 
               m1gr_err=None, m2gr_err=None,
+              m1m2_contour=None,
               pk_label_coord=None,
-              xlim=None, ylim=None, plot_inset=False):
+              xlim=None, ylim=None, plot_inset=False,
+              colour=None, line_style=None, m1m2_pbdot_uncorr=None):
 
      
      n_plot = len(plot_pk)
 # Ensure that we are plotting more than 1 parameter:
-     if(n_plot < 2):
-          print 'plot_m1m2:  Must plot more than one PK parameter. Exiting...'
-     clr = [cm.jet(float(i_plot)/float(n_plot-1)) for i_plot in range(n_plot)]
-
+     if(n_plot < 1):
+          print 'plot_m1m2:  Must plot at least one PK parameter. Exiting...'   
+     if(colour == None):
+          clr = [cm.jet(float(i_plot)/float(n_plot-1)) for i_plot in range(n_plot)]
+     else:
+          clr = colour
+          
+     if(line_style == None):
+         line_style='-'
+ 
 # Now, read input m1m2.dat-style file:     
      try:
           f_m1m2 = open(m1m2_file, 'r')
@@ -794,10 +822,62 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
      m2 = {'omdot':m1m2_data[:, 1:3], 'gamma':m1m2_data[:, 3:5], 
            'pbdot':m1m2_data[:, 5:7], 'r':m1m2_data[:, 7:9], 
            's':m1m2_data[:, 9:11]}
+     f_m1m2.close()
 
 # Set up labels for each PK parameter:
-     pk_label={'omdot':'$\.{\\omega}$', 'gamma':'$\\gamma$', 
-               'pbdot':'$\.{P_b}$', 'r':'$r$', 's':'$s$'}
+     pk_label={'omdot':'$\\dot{\\omega}$', 'gamma':'$\\gamma$', 
+               'pbdot':'$\\dot{P_b}$', 'r':'$r$', 's':'$s$'}
+
+# Read in uncorrected pbdot file if given
+     if(m1m2_pbdot_uncorr != None):
+          try:
+               f_m1m2 = open(m1m2_pbdot_uncorr, 'r')
+          except IOError as (errno, strerror):
+               if (errno == 2):  # file not found
+                    print "IOError ({0}): File".format(errno), m1m2_pbdot_uncorr, "not found."
+               else:
+                    print "IOError ({0}): {1}".format(errno, strerror)
+               return
+        
+          print "File", m1m2_pbdot_uncorr, "open."
+
+     # Read file.  Ordering of parameters is m1, then m2 for limiting values of each 
+     # PK parameter, in the following order:
+     #    M1 M2(OMDOT_LOW OMDOT_HI GAMMA_LOW GAMMA_HI PBDOT_LOW PBDOT_HI R_LOW R_HI S_LOW S_HI)
+
+          m1m2_data = np.array([line.split() for line in f_m1m2.readlines()], dtype=float)
+          n_rows = m1m2_data.shape[0]
+          n_cols = m1m2_data.shape[1]
+          m1_pbdot_uncorr = m1m2_data[:,0]
+          m2_pbdot_uncorr = {'pbdot_uncorr':m1m2_data[:, 5:7]}
+          f_m1m2.close()
+
+     # Read in contour data, if file is given.  Must be same .npy format as used for m2mtot grid:
+     if(m1m2_contour!=None):
+         load_array = np.load(m1m2_contour+'_params.npy')
+         # for the purposes of this routine, only need the following 
+         # things in p_out
+         p_out = {'m2':load_array[0],
+                  'mtot':load_array[1],
+                  'm1':load_array[2],
+                  'm1_prob':load_array[3]}
+         p_out['norm_like'] = np.load(m1m2_contour+'_prob.npy')
+         m1_contour_data = p_out['mtot']-p_out['m2']
+    #     m1lim = (args.mtotlim[0] - args.m2lim[0], args.mtotlim[1] - args.m2lim[1])
+    
+         prob_intervals = [0.683, 0.954]
+         weights=1.0
+     
+     # x_val = m1_contour_data, y_val = p_out['m2'], p_out['norm_like']
+          # Create levels at which to plot contours at each of the above intervals.  
+          # Will not assume going in that Z values are normalized to total volume of 1. 
+         contour_level = get_prob_2D_levels(p_out['norm_like'], prob_intervals)
+     #         if (norm==True):
+     #             z_val = (contour_data*weights)/np.sum(contour_data*weights)
+     #         else:
+         z_val = p_out['norm_like']
+     
+
 
 # Now start plotting, in order given by command-line choices of PK parameters:
      fig = plt.figure(figsize=(11,8.5))
@@ -806,7 +886,14 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
      for i_pk in range(n_plot):
           for i_lim in range(2):  # 2 for low and hi pkk param values of m2
                ax.plot(m1, m2[plot_pk[i_pk]][:,i_lim], 
-                       linestyle='-', color=clr[i_pk])
+                       linestyle=line_style, color=clr[i_pk])
+
+     if(m1m2_pbdot_uncorr != None):
+          for i_lim in range(2):  # 2 for low and hi pkk param values of m2
+               ax.plot(m1_pbdot_uncorr, m2_pbdot_uncorr['pbdot_uncorr'][:,i_lim], 
+                       linestyle='dashed', color=clr[plot_pk.index('pbdot')])
+         
+
 
 # Get overall (x,y) ranges for plot.  Needed only if xlim and ylim are not 
 # provided:
@@ -828,12 +915,10 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
 
      ax.set_xlim(xlim)
      ax.set_ylim(ylim)
-     ax.set_xlabel('Pulsar mass ($M_\\odot$)', fontsize=20.0)
-     ax.set_ylabel('Companion mass ($M_\\odot$)', fontsize=20.0)
-     ax.tick_params(labelsize=18)
-# Plot GR-derived masses, if given:
-     ax.plot(m1gr, m2gr, 'o', markersize=2.8, color='black')
-     ax.errorbar(m1gr, m2gr, xerr=m1gr_err, yerr=m2gr_err, ecolor='black')
+     ax.set_xlabel('Pulsar mass (M$_\\odot$)', fontsize=20.0)
+     ax.set_ylabel('Companion mass (M$_\\odot$)', fontsize=20.0)
+     ax.tick_params(labelsize=18)         
+     
      
 # If asked for, label PK params plotted at user-given coords
      if(pk_label_coord!=None):
@@ -844,31 +929,73 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
                        horizontalalignment='center',
                        verticalalignment='center')
 
+    # Plot m1m2 contour on main plot if requested:
+     if(m1m2_contour!=None):
+ 
+
+     # Now plot the pdf data
+     # Need to redo with regiular contour to get a line bordering it...
+          ax.contour(m1_contour_data, p_out['m2'], z_val, levels=contour_level, 
+                        colors=('0.0','none'), linewidths=[0.6, 0.0])
+     # Need to do with contourf so that it gets filled
+          ax.contourf(m1_contour_data, p_out['m2'], z_val, levels=contour_level, 
+                        colors=('0.35','none'))
+                      
+                        
+                        
+     else:
+         # Plot GR-derived masses, if given:
+          if(m1gr!=None and m2gr!=None):
+              ax.plot(m1gr, m2gr, 'o', markersize=2.8, color='black')
+              ax.errorbar(m1gr, m2gr, xerr=m1gr_err, yerr=m2gr_err, ecolor='black')
+    
 
 
 # If asked for, plot inset with zoom into area around actual masses:
      if(plot_inset):
           xlim_inset = (m1gr - 8.0*m1gr_err, m1gr + 8.0*m1gr_err)
           ylim_inset = (m2gr - 8.0*m2gr_err, m2gr + 8.0*m2gr_err)
+          # Plot little box in main plot:
+          inset_box = plt.Rectangle((xlim_inset[0], ylim_inset[0]), xlim_inset[1]-xlim_inset[0], ylim_inset[1]-ylim_inset[0], 
+                                      fc='none', ec='black', linestyle='dotted')
+          plt.gca().add_patch(inset_box)
+          
           # For now, put it in top right corner:
           ax_inset = fig.add_axes([0.55, 0.57, 0.35, 0.36])
           for i_pk in range(n_plot):
                for i_lim in range(2):  # 2 for low and hi pkk param values of m2
                     ax_inset.plot(m1, m2[plot_pk[i_pk]][:,i_lim], 
                                   linestyle='-', color=clr[i_pk])
+          if(m1m2_pbdot_uncorr != None):
+               for i_lim in range(2):  # 2 for low and hi pkk param values of m2
+                    ax_inset.plot(m1_pbdot_uncorr, m2_pbdot_uncorr['pbdot_uncorr'][:,i_lim], 
+                                  linestyle='dashed', color=clr[plot_pk.index('pbdot')])
+         
           ax_inset.set_xlim(xlim_inset)
           ax_inset.set_ylim(ylim_inset)
 #          ax_inset.set_xlabel('$m_1$')
 #          ax_inset.set_ylabel('$m_2$')
-     # Plot GR-derived masses, if given:
-          if(m1gr != None and m2gr != None):
-               ax_inset.plot(m1gr, m2gr, 'o', markersize=3.8, color='black')
-               ax_inset.errorbar(m1gr, m2gr, xerr=m1gr_err, 
-                                 yerr=m2gr_err, ecolor='black')
+
+          if(m1m2_contour!=None):
+         # Need to redo with regiular contour to get a line bordering it...
+              ax_inset.contour(m1_contour_data, p_out['m2'], z_val, levels=contour_level, 
+                            colors=('0.0','none'), linewidths=[1.5, 0.0])
+         # Need to do with contourf so that it gets filled
+              ax_inset.contourf(m1_contour_data, p_out['m2'], z_val, levels=contour_level, 
+                            colors=('0.6','none'))
+                      
+          else:
+              # Plot GR-derived masses, if given:
+               if(m1gr != None and m2gr != None):
+                     ax_inset.plot(m1gr, m2gr, 'o', markersize=3.8, color='black')
+                     ax_inset.errorbar(m1gr, m2gr, xerr=m1gr_err, 
+                                           yerr=m2gr_err, ecolor='black')
 
           ax_inset.tick_params(labelsize=11)
 
-          return
+
+
+     return
 
 
           
@@ -944,6 +1071,7 @@ def plot_dmx(dmx_data, canvassize=None, msize=None,
                
      if (ylabel):
           ax.set_ylabel('Delta DM (pc cm$^{-3}$)', fontsize=18)
+
 
      if(not xticks):
           for tick in ax.xaxis.get_major_ticks():

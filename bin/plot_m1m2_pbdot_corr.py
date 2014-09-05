@@ -14,9 +14,8 @@ def get_opt(progname):
           prog=progname,
           description='Plots post-Keplerian parameter curves in pulsar mass vs companion mass space, assuming GR')
      
-     parser.add_argument('m1m2file', 
-                         nargs='?',
-                         default='m1m2.dat',
+     parser.add_argument('m1m2files', 
+                         nargs=2,
                          help='input residual data file')
      parser.add_argument('--m1gr',
                          type=float,
@@ -66,6 +65,11 @@ def get_opt(progname):
                           action='store_true',
                           default=False,
                           help='Residual file comes from tempo2 run')
+     parser.add_argument('--pkinsetcoords',
+                         nargs='*',
+                         type=float,
+                         default=None,
+                         help='Label post-Keplerian parameters on plot at these coordinates (given is same order as --pkparams argument)')
 
 
      args=parser.parse_args()
@@ -143,12 +147,20 @@ def main():
      args = get_opt(progname)
 
 
-     plot_m1m2(args.m1m2file, plot_pk=args.pkparams, 
+     plot_m1m2(args.m1m2files[0], plot_pk=args.pkparams, 
                m1gr=args.m1gr, m1gr_err=args.m1gr_err, 
                m2gr=args.m2gr, m2gr_err=args.m2gr_err, 
                m1m2_contour=args.m1m2_contour_file,
                plot_inset=args.inset, xlim=args.xlim, ylim=args.ylim,
-               pk_label_coord=args.pkcoords)
+               pk_label_coord=args.pkcoords,
+             #  pk_inset_label_coords=args.pkinsetcoords,
+               m1m2_pbdot_uncorr=args.m1m2files[1],
+               colour=['black', 'darkblue', 'darkgreen', 'orange', 'darkred'])
+
+#     plot_m1m2(args.m1m2files[1], plot_pk=['pbdot'], 
+#               m1gr=args.m1gr, m1gr_err=args.m1gr_err, 
+#               m2gr=args.m2gr, m2gr_err=args.m2gr_err, 
+#               colour=['yellow'], plot_ddgr=False)
 
      if(args.outfile):
           print 'Plotted to file ', args.outfile

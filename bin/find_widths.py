@@ -80,6 +80,10 @@ def get_opt(progname):
                          type=int,
                          default=4,
                          help='Number of points to include on each side of estimated fractional pulse height phase when performing root-finding to determine exact phase value')
+     parser.add_argument('--npeakbins',
+                         type=int,
+                         default=16,
+                         help='Number of total points to use in fitting the peak height of the profile, with data peak at centre.')
      parser.add_argument('--peakphase',
                          type=float,
                          default=None,
@@ -93,7 +97,12 @@ def get_opt(progname):
      parser.add_argument('-o', '--outbase', dest='outbase',
                          default=None,
                          help='Base output file name.  For width data file, will append \'.dat\'; For plotted figure, will append \'.png\', etc.')
-                         
+     parser.add_argument('--nobase',
+                         action='store_true',
+                         help='Turn off baseline subtraction')    
+     parser.add_argument('--poisson',
+                         action='store_true',
+                         help='Use poisson errors for profile over number of itertions specified instead of randomly omitting points as a bootstrap method')
      
      args=parser.parse_args()
 
@@ -121,12 +130,21 @@ def main():
      phase_cut = args.phasecut
      n_poly_fit = args.npolyfit
      n_poly_order = args.npolyorder
-     n_pts_omit = n_poly_fit - 1
+     if(args.poisson):
+         n_pts_omit = 0
+     else:
+         n_pts_omit = n_poly_fit - 1
      n_bootstrap = args.niter
      n_hist_bins = args.nhistbins
      n_pts_test = args.ntestphase
      peak_phase = args.peakphase
      peak_height = args.peakheight
+     n_peak_bins = int(args.npeakbins/2.) # making it to be number of points on either side of data peak
+     if(args.nobase):
+         no_base=True
+     else:
+         no_base=False
+         
      
 
 ##     in_files = ['/Users/ferdman/Work/pulsar/0737-3039A/profs/add_campaigns/0737-3039A.20??.??.add.asc']
@@ -209,7 +227,7 @@ def main():
 
 
      for i_prof in np.arange(n_files):
-          prof_data = read_asc_prof(input_files[i_prof])
+          prof_data = read_asc_prof(input_files[i_prof], ionly=True)  # Stokes I only for now
           prof_head = read_asc_header(input_files[i_prof])
           psr_name = prof_head['psrname']
           mjd_width[i_prof] = prof_head['imjd'] + prof_head['smjd']/86400.
@@ -242,9 +260,11 @@ def main():
                width[i_prof,i_phase], width_err[i_prof,i_phase], A, pdf_width, x_width = \
                    get_width(prof_in, psr_name, percent_height, 
                              x_peak=peak_phase, y_peak=peak_height,
+                             nobase=no_base,
                              n_pts_fit=n_poly_fit, n_order=n_poly_order, 
                              n_omit=n_pts_omit, n_test_fit=n_pts_test, 
                              n_boot=n_bootstrap, hist_bins=n_hist_bins, 
+                             n_peak_bins=n_peak_bins, poisson=args.poisson,
                              return_more=True)
                
                # Plot gaussian fit to bootstrap histograms as we go along as a grid of subplots:
@@ -339,9 +359,9 @@ def main():
     # First include a header line containing PSR name, percent height, 
     # and phase range (which will usually be 0.0 to 1.0)
           f_out.write('# {0}   w{1:.1f}   {2:3.1f}  {3:3.1f}\n'.format(psr_name, 
-              percent_height, phase_cuts[i_phase], phase_cuts[i_phase+1])
-          np.savetxt(outfile_root+'.dat', \
-                          np.transpose((width_data['mjd'], width_data['width'], width_data['werr'])), \
+              percent_height, phase_cuts[i_phase], phase_cuts[i_phase+1]))
+          np.savetxt(outfile_root+'.dat', 
+                          np.transpose((width_data['mjd'], width_data['width'], width_data['werr'])), 
                           fmt='%-23.15f %14.10f   %14.10f') # x,y,z equal sized 1D arrays
 
         

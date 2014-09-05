@@ -203,6 +203,9 @@ def plot_pdf(x_val, pdf_data, canvassize=None, xticks=True, yticks=True, \
             ax.xaxis.grid(linestyle='--', color='black', \
                               linewidth=0.4)          
 
+        ax.ticklabel_format(axis='x', useOffset=False)
+        ax.ticklabel_format(axis='y', useOffset=False)
+
 # Now plot the pdf data
     plt.plot(x_val, pdf_data, color=linecolour, linestyle='steps-mid')
 
@@ -280,8 +283,9 @@ def plot_contour_pdf(x_val, y_val, contour_data, n_steps=32,\
                          norm=False, weights=None, \
                          canvassize=None, xticks=True, yticks=True, \
                          xlabel=True, ylabel=True, linecolour='black', \
-                         xlim=None, ylim=None, figtext=None, \
-                         hgrid=False, vgrid=False):
+                         xlim=None, ylim=None, figtext=None, figtextsize=16, \
+                         hgrid=False, vgrid=False,
+                         ticklabelsize=18, axislabelsize=18):
 
 # If weights are None, assign them to ones, with the same shape as the 
 # input z array:
@@ -304,9 +308,11 @@ def plot_contour_pdf(x_val, y_val, contour_data, n_steps=32,\
     
 # Set up the plot:
     fig = plt.figure(figsize=canvassize)
-    ax = fig.add_axes([0.12, 0.1, 0.8, 0.85])
-    ax.xaxis.set_tick_params(labelsize=16)
-    ax.yaxis.set_tick_params(labelsize=16)
+    ax = fig.add_axes([0.21, 0.14, 0.75, 0.81])
+    ax.xaxis.set_tick_params(labelsize=ticklabelsize, pad=8)
+    ax.yaxis.set_tick_params(labelsize=ticklabelsize, pad=8)
+    ax.ticklabel_format(axis='x', useOffset=False)
+    ax.ticklabel_format(axis='y', useOffset=False)
     if(xlim==None):
         ax.set_xlim(xmin - 0.01*xspan, xmax + 0.02*xspan)
     else:
@@ -317,9 +323,9 @@ def plot_contour_pdf(x_val, y_val, contour_data, n_steps=32,\
         ax.set_ylim(ylim)
 
     if (xlabel!=None):
-        ax.set_xlabel(xlabel, fontsize=18)
+        ax.set_xlabel(xlabel, fontsize=axislabelsize, labelpad=12)
     if (ylabel!=None):
-        ax.set_ylabel(ylabel, fontsize=18)
+        ax.set_ylabel(ylabel, fontsize=axislabelsize, labelpad=12)
        
     if(not xticks):
         for tick in ax.xaxis.get_major_ticks():
@@ -355,7 +361,7 @@ def plot_contour_pdf(x_val, y_val, contour_data, n_steps=32,\
 
     if(figtext!=None):
         for txt in figtext:
-            ax.text(txt[0], txt[1], txt[2], fontsize=10, \
+            ax.text(txt[0], txt[1], txt[2], fontsize=figtextsize, \
                         horizontalalignment='center', \
                         verticalalignment='center',)
 

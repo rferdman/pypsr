@@ -57,7 +57,7 @@ def tempo_chi2(parfile, timfile, tempo2=False):
 # Main fitting routine.  Outside wrapper will pass all the necessary input parameters.
 def grid_fit_shapiro_tempo(parfile_base, timfile, 
                            m2_range=[1.1, 1.4], cosi_range=[0.2, 0.4],
-                           n_m2=64, n_cosi=64, tempo2=False):
+                           n_m2=64, n_cosi=64, fmass=None, tempo2=False):
 
 # Expand input parmeter dictionary:
 
@@ -110,7 +110,9 @@ def grid_fit_shapiro_tempo(parfile_base, timfile,
 # Set name for temporary par file on which to run tempo:
     parfile_temp = 'par_temp.par'
 
-
+    if(fmass!=None):
+        m1 = np.zeros(n_iter, dtype=float)
+        m1_chi2 = np.zeros(n_iter, dtype=float)
 # alpha and delta each will run from 0. to pi:
     for i_m2 in np.arange(n_m2):
         
@@ -131,17 +133,24 @@ def grid_fit_shapiro_tempo(parfile_base, timfile,
                 tempo2=tempo2)
             chi2[i_m2, i_cosi] = chi2_cur
             redchi2[i_m2, i_cosi] = redchi2_cur
+
+
+            i_iter = i_m2*n_cosi + i_cosi
+            # array of corresponding values of m1 at each grid point, given mass function
+            if(fmass!=None):
+                m1[i_iter] = np.sqrt(((m2[i_m2]*sini[i_cosi])**3.)/fmass) - m2[i_m2]
+                m1_chi2[i_iter] = chi2_cur
+
 #####
 # print to screen every 8 iterations of m2 (= 128*128*8)
 #                  if (np.fmod(i_alpha, 4)==0. and i_delta==0 and i_T1==0):
             
             # Print a status every 32 iterations
 #########                #    chi2 = chisq(func_rl, mjd, y, popt, sigma=y_err)
-            iteration = i_m2*n_cosi + i_cosi
 #            if(np.fmod(iteration, 64)==0):
             restart_line()
             sys.stdout.write('{0:<10d}[{1:>3d}%]  {2:8.4f}  {3:8.4f}  {4:8.4f}   {5:14.5g}  {6:14.5g}'.format(
-                    iteration, int(100*float(iteration)/float(n_iter)), 
+                    i_iter, int(100*float(i_iter)/float(n_iter)), 
                     m2[i_m2], cosi[i_cosi], sini[i_cosi], 
                     chi2_cur, redchi2_cur))
             sys.stdout.flush()
@@ -181,12 +190,17 @@ def grid_fit_shapiro_tempo(parfile_base, timfile,
 #    print "Number of elements in likelihood array = ", np.size(likelihood)
 #    print "Sum of normalized array = ", np.sum(norm_like)
 
+    #m1_prob is basically the same as likelihood, but 1D
+    if(fmass != None):
+        m1_prob = np.exp(-(m1_chi2 - chi2_min)/2.0)/np.sum(likelihood)
 
 # Make up output dictionary to pass back to wrapping routine:
     p_out = {'norm_like':norm_like, 
              'm2':m2, 
              'cosi':cosi, 
-             'sini':sini}
+             'sini':sini,
+             'm1':m1,
+             'm1_prob':m1_prob}
 
     return p_out
 
@@ -227,7 +241,7 @@ def grid_fit_m2mtot_tempo(parfile_base, timfile,
 # Just to be paranoid, reset chi2 array
     chi2    = np.ones(n_dims, dtype=float)
     redchi2 = np.ones(n_dims, dtype=float)
-    m1      = np.ones(n_dims, dtype=float)
+#    m1      = np.ones(n_dims, dtype=float)
     #        weight  = np.ones(n_dims, dtype=float)
     
     # First, read in par file:
@@ -247,13 +261,13 @@ def grid_fit_m2mtot_tempo(parfile_base, timfile,
     parfile_temp = 'par_temp.par'
 
 # create array of corresponding m1 values:
+    m1 = np.zeros(n_iter, dtype=float)
+    m1_chi2 = np.zeros(n_iter, dtype=float)
 
 # alpha and delta each will run from 0. to pi:
     for i_m2 in np.arange(n_m2):
         
         for i_mtot in np.arange(n_mtot):     
-            # Calculate m1:
-            m1[i_m2, i_mtot] = mtot[i_mtot] - m2[i_m2]
        
             # Add the M2 and SINI lines to the base par file to create a temporary
             # par file to be fed to tempo:
@@ -274,12 +288,16 @@ def grid_fit_m2mtot_tempo(parfile_base, timfile,
             
             # Print a status every 32 iterations
 #########                #    chi2 = chisq(func_rl, mjd, y, popt, sigma=y_err)
-            iteration = i_m2*n_mtot + i_mtot
+            i_iter = i_m2*n_mtot + i_mtot
+            # Calculate m1:
+            m1[i_iter] = mtot[i_mtot] - m2[i_m2]
+            m1_chi2[i_iter] = chi2_cur
+
 #            if(np.fmod(iteration, 64)==0):
             restart_line()
             sys.stdout.write('{0:<10d}[{1:>3d}%]  {2:8.4f}  {3:8.4f}  {4:8.4f}   {5:14.5g}  {6:14.5g}'.format(
-                    iteration, int(100*float(iteration)/float(n_iter)), 
-                    m2[i_m2], mtot[i_mtot], m1[i_m2, i_mtot], 
+                    i_iter, int(100*float(i_iter)/float(n_iter)), 
+                    m2[i_m2], mtot[i_mtot], m1[i_iter], 
                     chi2_cur, redchi2_cur))
             sys.stdout.flush()
                         
@@ -309,11 +327,14 @@ def grid_fit_m2mtot_tempo(parfile_base, timfile,
     print "indices = ", indices
     print "min_m2 = ", m2[indices[0]]
     print "min_mtot = ", mtot[indices[1]]
-    print "min_m1    = ", m1[indices[0], indices[1]]
+    min_m1_ind = np.where(m1_chi2 == chi2_min)
+    print "min_m1    = ", m1[min_m1_ind]
 
     likelihood = np.exp(-(chi2 - chi2_min)/2.0)
 
     norm_like = likelihood/np.sum(likelihood)  # because not varying bin sizes
+ 
+    m1_prob = np.exp(-(m1_chi2 - chi2_min)/2.0)/np.sum(likelihood)
  
 #    print "Number of elements in likelihood array = ", np.size(likelihood)
 #    print "Sum of normalized array = ", np.sum(norm_like)
@@ -323,7 +344,8 @@ def grid_fit_m2mtot_tempo(parfile_base, timfile,
     p_out = {'norm_like':norm_like, 
              'm2':m2, 
              'mtot':mtot, 
-             'm1':m1}
+             'm1':m1,
+             'm1_prob':m1_prob}
 
     return p_out
 

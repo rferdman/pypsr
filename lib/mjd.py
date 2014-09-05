@@ -10,7 +10,10 @@ def mjdtodate(mjdin, dateformat=None):
     timestamp = (mjdin - 40587.)*86400.
 #    mjdin = time.time()/86400. + 40587.
     
-    date_out = datetime.fromtimestamp(timestamp)
+    if (type(timestamp) is list or type(timestamp) is np.ndarray):
+        date_out = np.array([datetime.fromtimestamp(timestamp[i_time]) for i_time in range(len(timestamp))])
+    else:
+        date_out = datetime.fromtimestamp(timestamp)
 
     if (dateformat != None):
 ##    print dateout.strftime("%Y-%b-%d")  # year-month-date

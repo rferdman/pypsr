@@ -12,13 +12,29 @@ import warnings
 def gaussian(x, A, mu, sigma):
 #     A, mu, sigma = p
      return A*np.exp(-(x-mu)**2/(2*sigma**2))
+     
+def straightline(x, m, b):
+    return m*x + b
 
 # Perform a fit of an x-y data set to a gaussian profile.
 # Add in a chi-sq calculation as well to return back to the parent routine.
-def fitgauss(xdata, ydata, p0=None):
-     popt, pcov = curve_fit(gaussian, xdata, ydata, p0=p0)
+def fitgauss(xdata, ydata, yerr=None, p0=None):
+     sig = None
+     if(yerr!=None):
+         sig = 1.0/yerr**2.0
+     popt, pcov = curve_fit(gaussian, xdata, ydata, sigma=sig, p0=p0)
      A, mu, sigma = popt
      return A, mu, sigma
+     
+def fitline(xdata, ydata, yerr=None, p0=None):
+    sig = None
+    if(yerr!=None):
+        sig = 1.0/yerr**2.0
+    popt, pcov = curve_fit(straightline, xdata, ydata, sigma=sig, p0=p0)
+    m, b = popt
+    merr = np.sqrt(pcov[0,0])
+    berr = np.sqrt(pcov[1,1])
+    return m, b, pcov
 
 # Pick out and return n random elements (non-repeating) of an array a, 
 # keeping the order in which they appear in the original input array.
@@ -96,6 +112,7 @@ def real_roots(poly_coeffs, x1=None, x2=None, warn=False):
           return re_roots[(re_roots >= x1) & (re_roots <= x2)]
           
 
+
 def nearest_index(y, y_val, ind_tol=None):
 
      if(y_val==None):
@@ -107,11 +124,12 @@ def nearest_index(y, y_val, ind_tol=None):
     # y_extra = np.append(y, y[0])
      y_bool = np.zeros_like(y).astype(bool)
      for i in np.arange(len(y_bool)-1): # -1 to avoid out of range array element for i+1:
-          if (y[i] < y_val  and y[i+1] > y_val or y[i] > y_val  and y[i+1] < y_val):
-               y_bool[i]= True
+         if (y[i] < y_val  and y[i+1] > y_val or y[i] > y_val  and y[i+1] < y_val):
+             y_bool[i]= True
                
 # These are the inds where the width at given y_val passes nearest:
      near_ind = np.where(y_bool)[0]
+     print 'near_ind = ', near_ind
 
      if(ind_tol!=None):
 # If there are several values very nearby to each other it is likely due to 

@@ -65,7 +65,7 @@ def main():
              ffmt='tempo2'
          else:
              ffmt='tempo1'
-         param_name, para_val, param_fit = read_par(args.parfile, file_format=ffmt)
+         param_name, para_val, param_fit = read_par(args.parfile, file_format=ffmt, return_tuple=True)
          n_param = param_fit.count(True)
 #         param_data = read_par(args.parfile, file_format=ffmt)
 

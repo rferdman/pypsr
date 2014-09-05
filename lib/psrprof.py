@@ -8,6 +8,8 @@ import scipy as sp
 from utils import *
 from psrread import get_duty
 import matplotlib.pyplot as plt
+import psr_utils as pu
+from fftfit import *
 
 import warnings
 
@@ -142,9 +144,10 @@ def norm(prof_data, duty):
 # corresponding to the given height.  The error on eahc side of the profile
 # will be added in quadrature.
 def get_width(prof_data, psr_name, percent_height, 
-              x_peak=None, y_peak=None, 
+              x_peak=None, y_peak=None, n_peak_bins=None, nobase=False,
               n_pts_fit=12, n_order=6, n_omit=3, n_test_fit=4, 
-              n_boot=16384, hist_bins=64, return_more=False):
+              n_boot=16384, hist_bins=64, 
+              poisson=False, return_more=False):
 
      PHASE_TOL = 0.005
      # Ignore warnings about polynomial rank:
@@ -160,17 +163,31 @@ def get_width(prof_data, psr_name, percent_height,
 # First, remove baseline in order to get the height calculated correctly
      n_bin_prof = len(prof_data['i'])
      duty = get_duty(psr_name)
-     prof_data['i'] = remove_base(prof_data['i'], duty)
+
+     # If not using regular baseline removal (due to, e.g., wide profile), 
+     # then just subtract the min point in profile
+     if(not nobase): 
+         prof_data['i'] = remove_base(prof_data['i'], duty)
+#     else:
+#         prof_data['i'] = prof_data['i'] - np.min(prof_data['i'])
+
 #     x_peak, y_peak = get_peak(prof_data, n_pts_fit=10, n_order=19, n_test_fit=4)
      if(y_peak == None):
           x_peak, y_peak = get_peak(prof_data, x_peak=x_peak, 
-                                    n_pts_fit=12, n_order=16, n_test_fit=5)
+                                    n_pts_fit=n_peak_bins, n_order=None, n_test_fit=5)
           print "x_peak, y_peak = ", x_peak, y_peak
           if(x_peak < 0):
                print 'Could not choose one.  Exiting: '
                exit()
-
-     height = 0.01*percent_height*y_peak
+        
+     # If not removing baseline, calculate height based on peak and minimum of profile
+     if(nobase):
+         height = np.min(prof_data['i']) + 0.01*percent_height*(y_peak - np.min(prof_data['i']))
+     else: 
+         height = 0.01*percent_height*y_peak
+         
+     print 'y_peak = ', y_peak
+     print 'height = ', height
 #     peak_height = np.amax(prof_data['i'])
 #     height = 0.01*percent_height*peak_height
 
@@ -208,7 +225,10 @@ def get_width(prof_data, psr_name, percent_height,
 # specify [0] -- np.where output is tuple, and match bins to phase values
 # just found
 ###     x_bins = np.where(prof_bool)[0][x_val_diff > PHASE_TOL]
-     x_bins = nearest_index(prof_data['i'], height, ind_tol=int(PHASE_TOL*n_bin_prof))
+     bin_tol = np.max([int(PHASE_TOL*n_bin_prof), 1])
+     print 'bin_tol = ', bin_tol
+     x_bins = nearest_index(prof_data['i'], height, ind_tol=bin_tol)
+#     x_bins = nearest_index(prof_data['i'], height, ind_tol=int(PHASE_TOL*n_bin_prof))
      n_width_bins = len(x_bins)
 
 ###################################################################################
@@ -249,10 +269,20 @@ def get_width(prof_data, psr_name, percent_height,
 # Main bootstrap loop:
      for i_boot in np.arange(n_boot):
 # Left
-          # choose indices at random
-          inds = pick(x_pts_left, len(x_pts_left)-1-n_omit)
-          x_pts_fit_left = x_pts_left[inds]
-          y_pts_fit_left = y_pts_left[inds]
+          
+          # If we are using poisson errors on our profile (e.g. X-ray data) then do a random poisson 
+          # sample each iteration
+          if(poisson):
+              # choose indices at random
+              #inds = pick(x_pts_left, len(x_pts_left)-1-n_omit)
+              x_pts_fit_left = x_pts_left
+              y_pts_fit_left = np.random.poisson(y_pts_left)              
+          else:
+              # choose indices at random
+              inds = pick(x_pts_left, len(x_pts_left)-1-n_omit)
+              x_pts_fit_left = x_pts_left[inds]
+              y_pts_fit_left = y_pts_left[inds]
+              
           poly_coeff_left = np.polyfit(x_pts_fit_left, y_pts_fit_left, n_order)
 # In order to find the roots for y = height, subtract the height value from the final 
 # coefficient, which is the zeroth-order coefficient
@@ -266,10 +296,20 @@ def get_width(prof_data, psr_name, percent_height,
                                      x1=prof_data['phase'][x_bins[0]-n_test_fit], \
                                      x2=prof_data['phase'][x_bins[0]+n_test_fit])
 
-# Right.  Same procedure:
-          inds = pick(x_pts_right, len(x_pts_right)-1-n_omit)
-          x_pts_fit_right = x_pts_right[inds]
-          y_pts_fit_right = y_pts_right[inds]
+
+          # Right.  Same procedure:
+
+          # If we are using poisson errors on our profile (e.g. X-ray data) then do a random poisson 
+          # sample each iteration
+          if(poisson):
+              #inds = pick(x_pts_right, len(x_pts_right)-1-n_omit)
+              x_pts_fit_right = x_pts_right
+              y_pts_fit_right = np.random.poisson(y_pts_right)              
+          else:
+              inds = pick(x_pts_right, len(x_pts_right)-1-n_omit)
+              x_pts_fit_right = x_pts_right[inds]
+              y_pts_fit_right = y_pts_right[inds]
+              
           poly_coeff_right = np.polyfit(x_pts_fit_right, y_pts_fit_right, n_order)
 #          x_right_bins = nearest_index(np.polyval(poly_coeff_right, x_pts_right), height)
           x_fit_right = polyxval(poly_coeff_right, height, \
@@ -285,6 +325,22 @@ def get_width(prof_data, psr_name, percent_height,
 #                  len(x_left_bins) == 1 and len(x_right_bins) == 1):
                x_left = np.append(x_left, x_fit_left)
                x_right = np.append(x_right, x_fit_right)
+               if(0):
+                   # Diagnostic:  plot profile with x values and height denoted by lines
+                   fig = plt.figure()
+                   plt.plot(prof_data['phase'], prof_data['i'], color='blue')
+                   plt.errorbar(prof_data['phase'], prof_data['i'], yerr=np.sqrt(prof_data['i']))
+                   plt.plot(x_pts_fit_left, y_pts_fit_left, color='red')
+                   poly = np.poly1d(poly_coeff_left)
+                   y_curve = poly(x_pts_fit_left)
+                   plt.plot(x_pts_fit_left, y_curve + height, color='green') # re-add height to bring curve back up
+                   plt.axhline(y=height, linestyle='dashed', color='orange')
+                   for x_line in x_fit_left:
+                       plt.axvline(x=x_line, linestyle='dashed', color='green')
+                       plt.savefig('test_polyfit.png')
+                       plt.close(fig)
+                       exit()
+               
           else:
                if(len(x_fit_left) == 0):
                     print "Found zero solutions for x_left at iteration ", i_boot, \
@@ -293,6 +349,21 @@ def get_width(prof_data, psr_name, percent_height,
                elif(len(x_fit_left) > 1):
                     print "x_left has more than one value!  Found x_left = ", x_fit_left, \
                         " at iteration ", i_boot, ". Omitting from bootstrap."
+                    # Diagnostic:  plot profile with x values and height denoted by lines
+                    if(0):
+                        fig = plt.figure()
+                        plt.plot(prof_data['phase'], prof_data['i'], color='blue')
+                        plt.errorbar(prof_data['phase'], prof_data['i'], yerr=np.sqrt(prof_data['i']))
+                        plt.plot(x_pts_fit_left, y_pts_fit_left, color='red')
+                        poly = np.poly1d(poly_coeff_left)
+                        y_curve = poly(x_pts_fit_left)
+                        plt.plot(x_pts_fit_left, y_curve + height, color='green') # re-add height to bring curve back up
+                        plt.axhline(y=height, linestyle='dashed', color='orange')
+                        for x_line in x_fit_left:
+                            plt.axvline(x=x_line, linestyle='dashed', color='green')
+                            plt.savefig('test_polyfit.png')
+                            plt.close(fig)
+                            exit()
 #               exit()
                     
 #          if(len(x_fit) == 1):
@@ -346,7 +417,7 @@ def get_width(prof_data, psr_name, percent_height,
 # Default is an order-2 polynomial to approximate a quadratic around the peak.  This may break 
 # down, so user is free to choose order.  No error estimation or bootstrap here.  May include that
 # later on.
-def get_peak(prof_data, x_peak=None, n_pts_fit=8, n_order=3, n_test_fit=2, return_more=False, warn=False):
+def get_peak(prof_data, x_peak=None, n_pts_fit=None, n_order=None, n_test_fit=2, return_more=False, warn=False):
 
 # Supress warnings (default)
      if (warn==False):
@@ -360,6 +431,13 @@ def get_peak(prof_data, x_peak=None, n_pts_fit=8, n_order=3, n_test_fit=2, retur
      rough_peak_x = prof_data['phase'][i_peak]
      rough_peak_y = prof_data['i'][i_peak]
      # print 'ROUGH PEAK = ', [rough_peak_x, rough_peak_y]
+     
+     if(n_pts_fit==None):
+         n_pts_fit=8
+     n_order=n_pts_fit-1
+
+     print 'n_pts_fit = ', n_pts_fit
+     print 'n_order   = ', n_order
 
 # Make test profile, adding wrapped points before and after, just in case.
 ##     testprof = np.append(prof_data['i'][n_bin_prof-n_pts_fit:n_bin_prof], prof_data['i'])
@@ -465,3 +543,16 @@ def get_peak(prof_data, x_peak=None, n_pts_fit=8, n_order=3, n_test_fit=2, retur
      else:
           print "x_peak has more than one value!  Found x_peak = ", x_peak
           return -1, -1
+
+
+# Align profile 'prof' to match a template 'template_prof' in phase
+def prof_align(prof, template_prof):
+
+    # Get amplitudes and phases from FFTing the input data profile
+    t_prof_fft, t_prof_amp, t_prof_phase = cprof(template_prof)
+    
+    # Now run fftfit to match the profiles and out the shifts and scales
+    shift,eshift,snr,esnr,b,errb,ngood = fftfit(prof,t_prof_amp,t_prof_phase)
+    prof_rot = pu.fft_rotate(prof, shift)
+    
+    return prof_rot

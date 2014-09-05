@@ -23,7 +23,7 @@ def get_opt(progname):
      parser.add_argument('timfile', 
                          nargs=1,
                          help='input TOA data file')
-     parser.add_argument('f', '--parfile', dest='parfile',
+     parser.add_argument('-f', '--parfile', dest='parfile',
                          nargs=1,
                          help='input ephemeris file')
      parser.add_argument('-o', '--outfile', dest='outfile',
@@ -266,7 +266,9 @@ def main():
                 xunits='orbphase', yunits=args.yunits, 
                 xticks=[True, False, False],
                 xlabel=[True, False, False],
-                xlim=args.xlim, ylim=args.ylim, gridlines=[0.])
+                ylabel=[False, True, False],
+                xlim=args.xlim, ylim=args.ylim, gridlines=[0.],
+                axislabelsize=32, ticklabelsize=32)
 
      if(args.outfile):
           plt.savefig(plot_file)

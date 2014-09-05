@@ -65,6 +65,10 @@ def get_opt(progname):
                          type=float,
                          default=0.,
                          help='Offset residuals from previous set by this amount.  Either a scalar value or a list of values of length equal to (number of info IDs - 1)')
+     parser.add_argument('--colour',
+                         nargs='*',
+                         default=None,
+                         help='Colours to plot residuals.')
 
 
      args=parser.parse_args()
@@ -168,7 +172,7 @@ def main():
                 canvassize=fig_size, symsize=2.0,
                 xunits=args.xunits, yunits=args.yunits, 
                 xlim=args.xlim, ylim=args.ylim, gridlines=[0.],
-                resoffset=args.resoffset)
+                resoffset=args.resoffset, colour=args.colour)
 
      if(args.outfile):
           plt.savefig(plot_file)

@@ -38,6 +38,12 @@ def main():
 # (command-line options to come later)
      prog_name = argv[0].strip('.py')
      
+# Scale factor for plotting difference plots
+     scale = 2.0
+     
+#     ref_file = argv[len(argv)-1]
+     ref_file = argv[1]
+
 #     arg = get_opt(prog_name)
      print 'n_args = ', len(argv) - 1
 #     prof_file = argv[1]
@@ -50,27 +56,36 @@ def main():
 
      input_files.reverse()
           
-     prof_data = []
-#     prof_date = []
-     date_text = []
-# First, read in profile data file, and assign each column to a separate
+          
+     if(input_files.count(ref_file) > 0):
+         input_files.remove(ref_file)
+          
+ # First, read in profile data file, and assign each column to a separate
 # numpy array     
 #     prof_file = input_files[0]
 #     prof_header = read_asc_header(prof_file)
 #     prof_data[0] = read_asc_prof(prof_file)
       
+     ref_header = read_asc_header(ref_file)
+     ref_data = read_asc_prof(ref_file)
+     # ref_data['i'] = norm(ref_data['i'], duty)
+    
 
 #     if(len(input_files) > 1):
 #     for prof_file in input_files:
+     prof_data = []
+     date_text = []
      nobs = []
      for i_prof in np.arange(len(input_files)):
           prof_header = read_asc_header(input_files[i_prof])
           duty = get_duty(prof_header['psrname'])
           nobs.append(prof_header['obscode'])
           print 'NOBS = ', nobs
-          prof_data_temp = read_asc_prof(input_files[i_prof], ionly=True)
-          prof_data_temp['i'] = norm(prof_data_temp['i'], duty)
-          prof_data_temp['i'] = prof_data_temp['i'] + i_prof
+          prof_data_temp = read_asc_prof(input_files[i_prof])
+#          prof_data_temp['i'] = norm(prof_data_temp['i'], duty)
+#          prof_data_temp['i'] = prof_data_temp['i'] + i_prof
+          diff_prof = remove_base((prof_data_temp['i'] - ref_data['i']), duty)
+          prof_data_temp['i'] = scale*(diff_prof) + i_prof + 1.2 
           print "Index = ", i_prof, \
                    ", Min = ", np.min(prof_data_temp['i']), \
                    ", Max = ", np.max(prof_data_temp['i']) 
@@ -81,6 +96,16 @@ def main():
           date_text.append((0.8, i_prof+0.25, prof_date))
           
      print "Date = ", date_text
+ 
+     # Make first prof in list for plot to be the ref profile
+     prof_data.append(ref_data)
+     ref_date = mjd.mjdtodate(ref_header['imjd'], \
+     dateformat='%Y %b %d')
+     date_text.append((0.5, 0.20, ref_date))
+     nobs.append(ref_header['obscode'])
+ 
+ 
+ 
      
      nobs_unique = list(set(nobs))
      clr=[]
@@ -96,9 +121,12 @@ def main():
      # prof_data.reverse()
      # date_text.reverse()
 
+     print 'LENGTH of PROF DATA = ', len(prof_data)
+     print 'LENGTH of colour = ', len(clr)
+
      plot_prof(prof_data, yticks=False, canvassize=(8,10), \
                     hgrid=False, vgrid=False, \
-                    ylim=(np.min(prof_data[0]['i'])-0.1, len(input_files)+0.1),
+                    ylim=(np.min(prof_data[0]['i'])-0.1, len(input_files)+0.1 + 1.),
                     figtext=date_text, linecolour=clr)
 
 
@@ -106,7 +134,7 @@ def main():
 # meaningThe following means that the 2nd argument is the 
 # desired output plot file name
      # plot_file = 'multi_profile.png'
-     plot_file = 'multi_profile.eps'
+     plot_file = 'diff_profile.pdf'
 
 #    plt.show()
      plt.savefig(plot_file)

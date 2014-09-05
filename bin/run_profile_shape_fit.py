@@ -107,7 +107,7 @@ def get_opt(progname):
     parser.add_argument('-i', '--inclination', dest='incl',
                         type=float,
                         help='Orbital inclination in degrees.  For now, must know this value.')
-    # For precession period, user can either input the value themself, or can 
+    # For precession period, user can either input the value itself, or can 
     # input parameters to enable its calculation.
     parser.add_argument('--pprec', dest='prec_period', # will convert to days
                         type=float,
