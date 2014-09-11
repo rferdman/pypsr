@@ -172,7 +172,9 @@ def read_xte_fits(fits_file, efilter=None, etol=0.0):
 
 
 # Pluck out pointing information from XTE fits data files
-def get_xte_pointing(xte_fits_file):
+# Can optionally input an RA and Dec (in degrees) for which offset from actual pointing will be calculated.
+# Default will be to calculate offset from barycentred RA, Dec.
+def get_xte_pointing(xte_fits_file, ra=None, dec=None):
     hdulist = fits.open(xte_fits_file, 'readonly')
     primary_header = hdulist[0].header
     data_header = hdulist[1].header
@@ -241,31 +243,54 @@ def get_xte_mjd_range(xte_fits_files, strip_path=False):
 # Allow for multiple files
 def get_xte_num_pcu_on(filter_file, filter_pcu_mjd=True):
     # Open filter file (which is a FITS file)
-    mjd = []
-    num_pcu_on = []
+    mjd = np.array([])
+    num_pcu_on = np.array([])
     for ffile in filter_file:
         hdulist = fits.open(ffile, 'readonly')
         data_header = hdulist[1].header
         data_table = hdulist[1].data
         n_epoch = len(data_table)
         #n_pcu = 5
+                
+                
+        mjd_cur = data_table['time']/86400.
+        try:
+            mjd_cur += data_header['mjdrefi'] + data_header['mjdreff']
+        except (Exception):
+            mjd_cur += data_header['mjdref'] # where only one number is given; not split into integer/fractional
+        mjd = np.append(mjd, mjd_cur)
         
-        for i_epoch in range(n_epoch):
-            mjd_cur = data_table[i_epoch]['time']/86400.
+        num_pcu_on_cur = data_table['num_pcu_on']
+        
+        # Hardcode exclusion of PCU0 data on or after 12 May 2000 (MJD 51676), due to loss of propane layer
+        # and exclusion of PCU1 data on or after 25 Dec 2006 (MJD 54094), also due to loss of propane layer
+        # BE FOREWARNED that you should ensure that profile data has also accounted for these exclusions!  Otherwise they won't match!
+        if(filter_pcu_mjd):
+            exclude_condition_0 = (mjd_cur >= 51676.0) & (data_table['pcu0_on'])
+            exclude_condition_1 = (mjd_cur >= 54094.0) & (data_table['pcu1_on'])
+            num_pcu_on_cur[exclude_condition_0] = num_pcu_on_cur[exclude_condition_0] - 1
+            num_pcu_on_cur[exclude_condition_1] = num_pcu_on_cur[exclude_condition_1] - 1
+
+        num_pcu_on = np.append(num_pcu_on, num_pcu_on_cur)
+            #num_pcu_on_cur = num_pcu_on_cur - n_exclude_pcu
+    
+        
+#####        for i_epoch in range(n_epoch):
+#####            mjd_cur = data_table[i_epoch]['time']/86400.
             
             #mjd_cur = np.array([data_table[i_epoch]['time']/86400. for i_epoch in range(n_epoch)])
-            try:
-                mjd_cur += data_header['mjdrefi'] + data_header['mjdreff']
-            except (Exception):
-                mjd_cur += data_header['mjdref'] # where only one number is given; not split into integer/fractional
+#####            try:
+#####                mjd_cur += data_header['mjdrefi'] + data_header['mjdreff']
+#####            except (Exception):
+#####                mjd_cur += data_header['mjdref'] # where only one number is given; not split into integer/fractional
                 
-            mjd.append(mjd_cur)
+#####            mjd.append(mjd_cur)
             #pcu_on = []
             #for i_pcu in range(n_pcu):
             #    pcu_on.append([data_table[i_epoch]['pcu'+str(i_pcu)+'_on'] for i_epoch in range(n_epoch)])
             #pcu_on = np.array(pcu_on)   
     
-            num_pcu_on_cur = data_table[i_epoch]['num_pcu_on']
+#####            num_pcu_on_cur = data_table[i_epoch]['num_pcu_on']
         #num_pcu_on_cur = np.array([data_table[i_epoch]['num_pcu_on'] for i_epoch in range(n_epoch)])
         ### Convert times to MJDs ###
         #  mjd_cur = epochs/86400.  # first convert to units of days
@@ -274,21 +299,21 @@ def get_xte_num_pcu_on(filter_file, filter_pcu_mjd=True):
         # Hardcode exclusion of PCU0 data on or after 12 May 2000 (MJD 51676), due to loss of propane layer
         # and exclusion of PCU1 data on or after 25 Dec 2006 (MJD 54094), also due to loss of propane layer
         # BE FOREWARNED that you should ensure that profile data has also accounted for these exclusions!  Otherwise they won't match!
-            if(filter_pcu_mjd):
-                n_exclude_pcu = 0
-                if( (mjd_cur >= 51676.0) & data_table[i_epoch]['pcu0_on']):
-                    n_exclude_pcu += 1
-                if( (mjd_cur >= 54094.0) & data_table[i_epoch]['pcu0_on']):
-                    n_exclude_pcu += 1
-                num_pcu_on_cur = num_pcu_on_cur - n_exclude_pcu
+#####            if(filter_pcu_mjd):
+#####                n_exclude_pcu = 0
+#####                if( (mjd_cur >= 51676.0) & data_table[i_epoch]['pcu0_on']):
+#####                    n_exclude_pcu += 1
+#####                if( (mjd_cur >= 54094.0) & data_table[i_epoch]['pcu1_on']):
+#####                    n_exclude_pcu += 1
+#####                num_pcu_on_cur = num_pcu_on_cur - n_exclude_pcu
                 
-            num_pcu_on.append(num_pcu_on_cur)
+#####            num_pcu_on.append(num_pcu_on_cur)
     
-        hdulist.close()
-        mjd = np.array(mjd)
-        num_pcu_on = np.array(num_pcu_on)
+#####        hdulist.close()
+#####        mjd = np.array(mjd)
+#####        num_pcu_on = np.array(num_pcu_on)
     
-    n_pcu_on = {'mjd':mjd, 'num':num_pcu_on}
+    n_pcu_on = {'time':data_table['time'], 'mjd':mjd, 'num':num_pcu_on}
     
     return n_pcu_on
     #return mjd, num_pcu_on

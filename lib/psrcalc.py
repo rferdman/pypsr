@@ -297,21 +297,20 @@ def bin_data(x, y, yerr=None, binsize=None, weigh_x=False, even_bins=False):
      # point, then find the next point after that, and do the same, and so on.
      if(binsize==None):
          n_bin = 64
-         binsize = (np.amax(x) + np.amin(x))/float(n_bin)
+         binsize = (np.amax(x) - np.amin(x))/float(n_bin)
      else:
-         n_bin = int((np.amax(x) + np.amin(x))/float(binsize))
-
+         n_bin = np.int_((np.amax(x) - np.amin(x))/float(binsize))
 
      # Best to sort x, y, and y_err to start
      ind_sort = np.argsort(x)
      x = x[ind_sort]
      y = y[ind_sort]
      if(yerr != None):
-         yerr = yerr[ind_sort]
+         y_err = yerr[ind_sort]
      else:
-         yerr = np.ones_like(y)
+         y_err = np.ones_like(y)
      # Have weight aarray ready
-     weight = 1.0/(yerr**2.) 
+     weight = 1.0/(y_err**2.) 
   
      xbin = []
      ybin = []
@@ -330,11 +329,18 @@ def bin_data(x, y, yerr=None, binsize=None, weigh_x=False, even_bins=False):
              bin_inds = (x>=bin_min[i_bin]) & (x<bin_max[i_bin])
 
              if(len(x[bin_inds]) > 0):
-                 bin_weight = np.sum(weight[bin_inds])
-                 ybin.append(np.sum(y[bin_inds]*weight[bin_inds])/bin_weight)
+                 if(yerr !=None):
+                     bin_weight = np.sum(weight[bin_inds])
+                 else:
+                     bin_weight = 1.
+                 ybin_cur = np.sum(y[bin_inds]*weight[bin_inds])/bin_weight
+                 ybin.append(ybin_cur)
                  ybinerr.append(np.sqrt(1.0/bin_weight))
                  if(weigh_x==True):
                      xbin.append(np.sum(x[bin_inds]*weight[bin_inds])/bin_weight)
+             else:
+                 ybin.append(0.)
+                 ybinerr.append(0.)
           
          if(weigh_x==False):
              xbin = bin_edges[0:n_bin]+binsize/2.
@@ -362,8 +368,14 @@ def bin_data(x, y, yerr=None, binsize=None, weigh_x=False, even_bins=False):
 
      ybin = np.array(ybin)
      ybinerr = np.array(ybinerr)
-
-     return xbin, ybin, ybinerr
+     
+     if(yerr==None):
+         bin_dict = {'xbin':xbin, 'ybin':ybin}
+         return bin_dict
+     else:
+         bin_dict = {'xbin':xbin, 'ybin':ybin, 'ybinerr':ybinerr}
+         return bin_dict
+#         return xbin, ybin, ybinerr
 
 def testfunc(x):
     f = x**2.0 - 9.0
