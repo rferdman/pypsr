@@ -4,6 +4,7 @@ import subprocess
 import numpy as np
 import scipy as sp
 from scipy.optimize import curve_fit
+from scipy.interpolate import Rbf, InterpolatedUnivariateSpline
 import matplotlib.pyplot as plt
 import warnings
 
@@ -171,3 +172,131 @@ def div_check(num, denom):
      return True
   else:
      return False
+     
+# Find peak of a curve given x and y data
+def get_peak(x, y, x_peak=None, n_pts_fit=None, n_order=None, n_test_fit=2, return_more=False, warn=False):
+
+# Supress warnings (default)
+     if (warn==False):
+          warnings.simplefilter('ignore', np.RankWarning)
+
+     #plt.ion()
+
+     n_pts = len(x)
+
+     i_peak = np.argmax(y)
+     rough_peak_x = x[i_peak]
+     rough_peak_y = y[i_peak]
+     # print 'ROUGH PEAK = ', [rough_peak_x, rough_peak_y]
+     
+     if(n_pts_fit==None):
+         n_pts_fit=8
+     n_order=n_pts_fit-1
+
+     print 'n_pts_fit = ', n_pts_fit
+     print 'n_order   = ', n_order
+
+# Make test profile, adding wrapped points before and after, just in case.
+##     testprof = np.append(prof_data['i'][n_bin_prof-n_pts_fit:n_bin_prof], prof_data['i'])
+##     testprof = np.append(testprof, prof_data['i'][0:n_pts_fit])
+##     testphase = np.append(x[n_bin_prof-n_pts_fit:n_bin_prof]- 1.0, x)
+##     testphase = np.append(testphase, 1.0 + x[0:n_pts_fit])
+
+# Each bin in testphase/testprof must be advanced by n_pts_test to match the actual points we are fitting
+##     i_peak_test = i_peak + n_pts_fit
+
+# Now choose points to perform polynomial fit; tan_ptske into account possible
+# phase wrap in used part of profile
+     #  print 'i_peak = ', i_peak
+     #  print 'n_pts_fits  = ', n_pts_fit
+     #  print 'i_peak - n_pts_fit = ', i_peak - n_pts_fit 
+     #  print 'max phase = ', np.max(x)
+     # In all cases, bring peak region we are using to ~0.5 in phase.
+     # It seems that polyfit's results are affected when close to zero 
+     # for some reason...     y
+     artificial_offset = (0.5 - rough_peak_x)
+     if(i_peak-n_pts_fit < 0):
+          ## print 'BELOW ZERO'
+          n_overlap = np.abs(i_peak-n_pts_fit)
+          x_peak_pts = np.append(
+               x[n_pts - n_overlap : n_pts] - 1.0,
+               x[0:i_peak+n_pts_fit+1]) + \
+               artificial_offset
+          y_peak_pts = np.append(
+               y[n_pts - n_overlap : n_pts],
+               y[0:i_peak+n_pts_fit+1])
+     elif(i_peak + n_pts_fit >= n_pts):
+          ## print 'ABOVE N_BIN_PROF'
+          n_overlap = np.abs(i_peak + n_pts_fit - n_pts)
+          x_peak_pts = np.append(
+               x[i_peak-n_pts_fit:n_pts],
+               x[0:n_overlap])+ \
+               artificial_offset
+          y_peak_pts = np.append(
+               y[i_peak-n_pts_fit:n_pts],
+               y[0:n_overlap])
+     else:
+          ## print 'NORMAL'
+          x_peak_pts = x[i_peak-n_pts_fit : i_peak+n_pts_fit+1]+ \
+               artificial_offset
+          y_peak_pts = y[i_peak-n_pts_fit : i_peak+n_pts_fit+1]
+     
+     ## print 'n_pts   = ', len(x_peak_pts)
+     ## print 'n_bin   = ', n_pts
+     ## print 'n_order = ', n_order
+# Perform polynomial fit
+     poly_peak = np.polyfit(x_peak_pts, y_peak_pts, n_order)
+
+# fit peak may have shifted from data peak (still based on data points):
+     y_poly_test = np.polyval(poly_peak, x_peak_pts)
+     i_new_peak = np.argmax(y_poly_test)
+     x_new_peak = x_peak_pts[i_new_peak]
+#     plt.plot(x,y)
+     ## print 'x_peak_pts  = ', x_peak_pts
+#     print 'y_peak_pts  = ', y_peak_pts
+#     print 'y_poly_test = ', y_poly_test
+     #plt.plot(x_peak_pts, y_peak_pts, 'o')
+     #plt.plot(x_peak_pts, y_poly_test)
+#     plt.show()
+     
+# Find derivative of polynomial we just fit.  Default is 1st derivative
+     poly_peak_deriv = np.polyder(poly_peak)
+
+# n_test_fit in units of phase
+     n_test_phase = (float(n_test_fit)/(float(n_pts)))#/np.amax(x)))
+# Find roots of derivative around peak, in range given by user
+     ## print 'x1 = ', x_new_peak - n_test_phase
+    ##  print 'x2 = ', x_new_peak + n_test_phase
+     ## print 'xmin = ', np.min(x_peak_pts)
+     ## print 'xmax = ', np.max(x_peak_pts)
+     if(x_peak==None):
+          x_peak = real_roots(
+               poly_peak_deriv, 
+               x1=(x_new_peak - n_test_phase), 
+               x2=(x_new_peak + n_test_phase))
+#                             x1=x[i_peak-n_test_fit], \
+#                             x2=x[i_peak+n_test_fit])
+     else:
+          # Don't forget to artificially offset the x_peak provided by user:
+          # (put into array format)
+          x_peak = np.array([x_peak + artificial_offset])
+
+     if(len(x_peak) == 1):
+          # Evaluate original polynomial at above fit value     
+          y_peak = np.polyval(poly_peak, x_peak)    
+          # return x_peak to original phase by removing offset originally added
+          # to make it around 0.5 phase:
+          x_peak = x_peak - artificial_offset
+          ####plt.plot(x_peak, y_peak, 'ro')
+     # All done! Return values:
+          if (return_more):
+               return x_peak, y_peak, poly_peak
+          else:
+               return x_peak, y_peak
+
+     elif(len(x_peak) == 0):
+          print "Found zero solutions for x_peak. "
+          return -1, -1
+     else:
+          print "x_peak has more than one value!  Found x_peak = ", x_peak
+          return -1, -1

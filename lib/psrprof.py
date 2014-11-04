@@ -173,7 +173,7 @@ def get_width(prof_data, psr_name, percent_height,
 
 #     x_peak, y_peak = get_peak(prof_data, n_pts_fit=10, n_order=19, n_test_fit=4)
      if(y_peak == None):
-          x_peak, y_peak = get_peak(prof_data, x_peak=x_peak, 
+          x_peak, y_peak = get_peak_prof(prof_data, x_peak=x_peak, 
                                     n_pts_fit=n_peak_bins, n_order=None, n_test_fit=5)
           print "x_peak, y_peak = ", x_peak, y_peak
           if(x_peak < 0):
@@ -417,7 +417,7 @@ def get_width(prof_data, psr_name, percent_height,
 # Default is an order-2 polynomial to approximate a quadratic around the peak.  This may break 
 # down, so user is free to choose order.  No error estimation or bootstrap here.  May include that
 # later on.
-def get_peak(prof_data, x_peak=None, n_pts_fit=None, n_order=None, n_test_fit=2, return_more=False, warn=False):
+def get_peak_prof(prof_data, x_peak=None, n_pts_fit=None, n_order=None, n_test_fit=2, return_more=False, warn=False):
 
 # Supress warnings (default)
      if (warn==False):

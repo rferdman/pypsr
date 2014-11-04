@@ -3,6 +3,8 @@
 import numpy as np
 import scipy as sp
 from astropy.io import fits
+from astropy import units as u
+from astropy.coordinates import SkyCoord
 import matplotlib.pyplot as plt
 import time
 from datetime import date, datetime, timedelta
@@ -17,6 +19,7 @@ from fluxtool import *
 
 
 chan_table_file = '/Users/ferdman/Work/pulsar/data_tables/xte_energy_channels.dat'
+coll_response_file = '/Users/ferdman/Work/pulsar/data_tables/pca_coll_response_calib.dat'
 # Min/max energies for XTE in keV
 xte_emin = 0.
 xte_emax = 130.0
@@ -175,11 +178,14 @@ def read_xte_fits(fits_file, efilter=None, etol=0.0):
 # Can optionally input an RA and Dec (in degrees) for which offset from actual pointing will be calculated.
 # Default will be to calculate offset from barycentred RA, Dec.
 def get_xte_pointing(xte_fits_file, ra=None, dec=None):
+    
+    # make into a loop of fits files
+    
+    
     hdulist = fits.open(xte_fits_file, 'readonly')
     primary_header = hdulist[0].header
     data_header = hdulist[1].header
     data_table = hdulist[1].data
-
 
     mean_time = 0.5 * (np.min(data_table['time']) + np.max(data_table['time']) )/86400.  # in days
     try:
@@ -194,19 +200,63 @@ def get_xte_pointing(xte_fits_file, ra=None, dec=None):
     if('ra_nom' in data_header and 'dec_nom' in data_header):
         pnt_info['ra_bary'] = data_header['ra_nom']
         pnt_info['dec_bary'] = data_header['dec_nom']
+        # If we supply an ra, dec, this will be the reference coords for calculating separations
+        if((ra==None) & (dec==None)):
+            ref_ra = pnt_info['ra_bary']
+            ref_dec = pnt_info['dec_bary']
+        else:
+            ref_ra = ra
+            ref_dec = dec
+        # get separation between pointing and barycetred coordinates
+        c_pnt = SkyCoord(ra=pnt_info['ra_pnt'], dec=pnt_info['dec_pnt'], frame='icrs', unit='deg')
+        c_ref = SkyCoord(ra=ref_ra, dec=ref_dec, frame='icrs', unit='deg')
+        pnt_info['sep'] = c_ref.separation(c_pnt).deg
     else:
         print xte_fits_file + ' has no ra_nom/dec_nom keywords'
         pnt_info['ra_bary'] = -1.
         pnt_info['dec_bary'] = -1.
-        
-
+        if((ra==None) & (dec==None)):
+            pnt_info['sep'] = -1.
+            pnt_info['sep'] = -1.
+        else:
+            ref_ra = ra
+            ref_dec = dec
+            c_pnt = SkyCoord(ra=pnt_info['ra_pnt'], dec=pnt_info['dec_pnt'], frame='icrs', unit='deg')
+            c_ref = SkyCoord(ra=ref_ra, dec=ref_dec, frame='icrs', unit='deg')
+            pnt_info['sep'] = c_ref.separation(c_pnt).deg
+            
+    
     # Close fits file 
     hdulist.close()
    
     return pnt_info
-   
     
 
+# Return array of collimator responses for an input pointing offset array.
+# Pointing offset should be given in degrees
+def get_pca_col_response(pnt_offset):
+    # read collimator response file
+    col_resp_x, col_resp_y = np.loadtxt(coll_response_file, usecols=(0,1), unpack=True)
+    A, mu, sig = fitgauss(col_resp_x, col_resp_y) #, p0=[np.max(col_resp_y), 0., 80;])
+    # Given array of input pointing offsets, get back response values
+    offset_arcmin = pnt_offset*60.
+    response = gaussian(offset_arcmin, A, mu, sig)
+    return response    
+        
+# Pointing offset should be given in degrees
+# This is calculated from a response function found from calibration using the Crab.
+def get_pca_col_response_crab(pnt_offset):
+    # read collimator response file
+    col_resp_x, col_resp_y = np.loadtxt(coll_response_file, usecols=(0,1), unpack=True)
+    # Get peak for normalization
+    x_peak, y_peak = get_peak(col_resp_x, col_resp_y)
+    ius = InterpolatedUnivariateSpline(col_resp_x, col_resp_y)
+    # Given array of input pointing offsets, get back response values
+    offset_deg = pnt_offset
+    response = ius(offset_deg)/y_peak
+    return response
+        
+    
 # Get start and end dates covered by given filter file
 # Works for data files and filter files
 def get_xte_mjd_range(xte_fits_files, strip_path=False):
