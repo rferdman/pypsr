@@ -247,7 +247,7 @@ def get_width(prof_data, psr_name, percent_height,
                wrap = True
 
      testbin = x_bins + n_pts_fit   
-     print 'WRAP = ', wrap
+     ###print 'WRAP = ', wrap
 
 # Now for each side of the profile, run a bootstrap of polynomial fits, 
 # omitting n_omit points each time, and keeping track of the fit value for x at the given height
@@ -436,8 +436,8 @@ def get_peak_prof(prof_data, x_peak=None, n_pts_fit=None, n_order=None, n_test_f
          n_pts_fit=8
      n_order=n_pts_fit-1
 
-     print 'n_pts_fit = ', n_pts_fit
-     print 'n_order   = ', n_order
+#     print 'n_pts_fit = ', n_pts_fit
+#     print 'n_order   = ', n_order
 
 # Make test profile, adding wrapped points before and after, just in case.
 ##     testprof = np.append(prof_data['i'][n_bin_prof-n_pts_fit:n_bin_prof], prof_data['i'])
@@ -546,7 +546,7 @@ def get_peak_prof(prof_data, x_peak=None, n_pts_fit=None, n_order=None, n_test_f
 
 
 # Align profile 'prof' to match a template 'template_prof' in phase
-def prof_align(prof, template_prof):
+def prof_align(prof, template_prof, return_more=False):
 
     # Get amplitudes and phases from FFTing the input data profile
     t_prof_fft, t_prof_amp, t_prof_phase = cprof(template_prof)
@@ -555,4 +555,12 @@ def prof_align(prof, template_prof):
     shift,eshift,snr,esnr,b,errb,ngood = fftfit(prof,t_prof_amp,t_prof_phase)
     prof_rot = pu.fft_rotate(prof, shift)
     
-    return prof_rot
+    if(return_more):
+      return shift, eshift, snr, esnr, b, errb, prof_rot
+    else:
+      return prof_rot
+
+
+
+
+

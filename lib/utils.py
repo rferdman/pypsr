@@ -193,8 +193,8 @@ def get_peak(x, y, x_peak=None, n_pts_fit=None, n_order=None, n_test_fit=2, retu
          n_pts_fit=8
      n_order=n_pts_fit-1
 
-     print 'n_pts_fit = ', n_pts_fit
-     print 'n_order   = ', n_order
+#     print 'n_pts_fit = ', n_pts_fit
+#     print 'n_order   = ', n_order
 
 # Make test profile, adding wrapped points before and after, just in case.
 ##     testprof = np.append(prof_data['i'][n_bin_prof-n_pts_fit:n_bin_prof], prof_data['i'])

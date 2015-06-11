@@ -1,0 +1,19 @@
+
+# Plots and figures
+*.png
+*.pdf
+*.eps
+
+# compiled files
+*.pyc
+
+# Backup *.OLD and *.SAFE files
+*.SAFE*
+*.OLD*
+
+
+
+*.swp
+lib/fortran/psrfft.f
+lib/fortran/psrfft.so
+lib/fortran/temp

@@ -463,7 +463,7 @@ def plot_resid(resid_data, info_plot=None, canvassize=None,
 
      # Adjust limits to have about 5% breathing room of the plotted limits 
      # on either side:
-          print 'GOT TO HERE'
+          #print 'GOT TO HERE'
           x_lim = ax[i_plot].get_xlim()
           x_buffer = 0.025*(x_lim[1]-x_lim[0])
           ax[i_plot].set_xlim(x_lim[0]-x_buffer, x_lim[1]+x_buffer)
@@ -471,7 +471,7 @@ def plot_resid(resid_data, info_plot=None, canvassize=None,
           y_buffer = 0.05*(y_lim[1]-y_lim[0])
           ax[i_plot].set_ylim(y_lim[0]-y_buffer, y_lim[1]+y_buffer)
 
-          print 'ylim = ', y_lim
+          #print 'ylim = ', y_lim
           # Figure text must be a list of tuples: [(x, y, text), (x, y, text), ...]
           if(figtext!=None):
                for txt in figtext:

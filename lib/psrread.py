@@ -232,8 +232,8 @@ def read_resid(resid_file, tempo2=False, info_file=None, info_flag=None):
 # plot different nobs different colours by deafult
               info_val, info_indices = np.unique(nobs, return_index=True)
               info_id = nobs # just to make compatible with rest of code and plotter
-         print 'INFO_ID = ', info_id
-         print 'INFO_VAL = ', info_val
+         # print 'INFO_ID = ', info_id
+         # print 'INFO_VAL = ', info_val
       
 # Otherwise, assume it is in c.tmp format from tempo1:    
     else:
@@ -556,20 +556,20 @@ def read_par(par_file, file_format='tempo1', return_tuple=False, verbose=False):
 
 # Parse each line
 #    param_name = ['psr', 'raj', 'decj', 'pmra', 'pmdec', 'px', 'f', \
-    param_name = ['psr', 'raj', 'decj', 'pmra', 'pmdec', 'px', 'f', \
+    param_name = ['psr', 'psrj', 'raj', 'decj', 'pmra', 'pmdec', 'px', 'f', \
                        'pepoch', 'start', 'finish', 'dm', 'ephem', 'clk', \
                        'ntoa', 'tres', 'tzrmjd', 'tzrfrq', 'tzrsite', \
                        'nits', 'binary', 'pb', 'ecc', 'om', 't0', 'a1', \
                        'tasc', 'eps1', 'eps2', 'omdot', 'pbdot', 'gamma', \
                        'm2', 'sini', 'shapmax', 'posepoch', 'dmepoch', 'ephver', \
-                       'glep', 'glph', 'glf0', 'glf1']
-    param_type = ['s',   's',   's',    'f',    'f',     'f',  'f', \
+                       'glep', 'glph', 'glf0', 'glf1', 'units', 'mode']
+    param_type = ['s',   's',    's',   's',    'f',    'f',     'f',  'f', \
                        'f',      'f',     'f',      'f',  's',    's', \
                        'd',    'f',    'f',      'f',      's',  \
                        'd',    's',      'f',  'f',   'f',  'f',  'f', \
                        'f',    'f',    'f',    'f',     'f',     'f', \
                        'f',   'f',   'f',        'f',         'f',       'd', \
-                       'f',    'f',    'f',    'f']
+                       'f',    'f',    'f',    'f',    's',     'd']
     f_val = [0.0 for i in range(maxf)] # max 15 f derivatives
     f_err = [-1.0 for i in range(maxf)] # max 15 f derivatives
     f_fit = [False for i in range(maxf)] # max 15 f derivatives
@@ -617,7 +617,8 @@ def read_par(par_file, file_format='tempo1', return_tuple=False, verbose=False):
             if (file_format == 'tempo1' and param == 'e'): param = 'ecc' 
 # change 'psrj' to 'psr' if file is in tempo2 format -- still not sure about 
 # storing psr j vs b names...
-            if (file_format == 'tempo2' and param == 'psrj'): param = 'psr' 
+            if (file_format == 'tempo2' and param == 'psrj'): param = 'psr'
+
 ##            temp_params.append( (param, value) )
 # If param if rot. frequency or a derivative...
             if (param[0].startswith('f') and len(param) < 4):  # < 4 to avoid the "finish" parameter
@@ -730,6 +731,8 @@ def read_par(par_file, file_format='tempo1', return_tuple=False, verbose=False):
     if(return_tuple):
         return param_name, param_val, param_fit, param_err
     else:
+        #print 'Par file:'
+        #print params
         return params
 
 

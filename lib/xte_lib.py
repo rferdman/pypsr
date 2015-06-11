@@ -197,9 +197,9 @@ def get_xte_pointing(xte_fits_file, ra=None, dec=None):
     pnt_info = {'mjd':mean_mjd}
     pnt_info['ra_pnt'] = data_header['ra_pnt']
     pnt_info['dec_pnt'] = data_header['dec_pnt']
-    if('ra_nom' in data_header and 'dec_nom' in data_header):
-        pnt_info['ra_bary'] = data_header['ra_nom']
-        pnt_info['dec_bary'] = data_header['dec_nom']
+    if('ra_obj' in data_header and 'dec_obj' in data_header):
+        pnt_info['ra_bary'] = data_header['ra_obj']
+        pnt_info['dec_bary'] = data_header['dec_obj']
         # If we supply an ra, dec, this will be the reference coords for calculating separations
         if((ra==None) & (dec==None)):
             ref_ra = pnt_info['ra_bary']
@@ -212,13 +212,15 @@ def get_xte_pointing(xte_fits_file, ra=None, dec=None):
         c_ref = SkyCoord(ra=ref_ra, dec=ref_dec, frame='icrs', unit='deg')
         pnt_info['sep'] = c_ref.separation(c_pnt).deg
     else:
-        print xte_fits_file + ' has no ra_nom/dec_nom keywords'
+        print xte_fits_file + ' has no ra_obj/dec_obj keywords'
         pnt_info['ra_bary'] = -1.
         pnt_info['dec_bary'] = -1.
         if((ra==None) & (dec==None)):
+            print 'Flagging file as having no barycentred coordinate keywords...'
             pnt_info['sep'] = -1.
             pnt_info['sep'] = -1.
         else:
+            print 'Using user-input vlaues for RA and Dec...'
             ref_ra = ra
             ref_dec = dec
             c_pnt = SkyCoord(ra=pnt_info['ra_pnt'], dec=pnt_info['dec_pnt'], frame='icrs', unit='deg')
@@ -229,6 +231,9 @@ def get_xte_pointing(xte_fits_file, ra=None, dec=None):
     # Close fits file 
     hdulist.close()
    
+    #print ''
+    #print 'pnt_info: ', pnt_info
+    #print ''
     return pnt_info
     
 
@@ -718,7 +723,7 @@ def get_xte_event_filter_mask(ph_data, filter_file_mjd):
 # Now read in a par file and then fold data into profiles
 # Read par file
 def fold_event_prof(ph_mjd, par_file, nbins=16):
-    params = read_par(par_file)
+    params = read_par(par_file, file_format='tempo2')
     # Fold data with psr_utils by first calculating phases for each MJD based on par file's F0, F1, ... only good for isolated puslar
     ph_phase = pu.calc_phs(ph_mjd, params['pepoch'], params['f'][0], params['f'][1], params['f'][2], params['f'][3])
     # Cast all negative phases to be between 0 and 1
@@ -824,10 +829,13 @@ def plot_xte_prof(prof):
 # Add profs together by date.  Input is list of profile dictionaries
 # Output is list of added profile dictionaries
 # Also, need parameters as read from a par file or otherwise, to recalculate reference phases and frequencies
-def add_xte_prof(profile_in, params, days_add=0.5, align=False, template=None, filter_files=None):
+def add_xte_prof(profile_in, params, days_add=0.5, mjd_start=None, mjd_finish=None, align=False, template=None, filter_files=None):
     
     # Assume we are not adding all profs together to start
     add_all = False
+
+    if((mjd_start != None) & (mjd_finish != None) & (mjd_start > mjd_finish)):
+        print 'WARNING: mjd_start is not suppoed to be greater than mjd_finish'
     
     n_prof_in = len(profile_in)
     prof = []
@@ -843,14 +851,44 @@ def add_xte_prof(profile_in, params, days_add=0.5, align=False, template=None, f
     sort_ind = np.argsort(prof_mjd)
     prof_mjd = prof_mjd[sort_ind]
     prof = prof[sort_ind]
-    
-    # If days_add is negative, then add everything in list
-    if(days_add < 0):
-        days_add = np.max(prof_mjd) - np.min(prof_mjd) + 10.0 # add some extra days just to be safe
-        add_all = True
+
+    # If only certain MJDs are specified in arguments, then filter out those MJDs only for the rest of the function.  It will
+    # then just think these were all the input files, and if all are added together then it would behave the same, but now only selected
+    # files would be used.  This is the easiest way to allow selected MJD range.
+    # So, add an if statement here that if we are only doing selected dates then no need for while loop; just add all within specified MJDs
+    #if(mjd_start  != None): prof = prof[prof_mjd >= mjd_start]
+    #if(mjd_finish != None): prof = prof[prof_mjd <= mjd_finish]
+
     
     # Initialize starting index
-    i_first = 0
+    if(mjd_start != None):
+        # Get mjd differences between prof_mjd and mjd_start, take abs of negative ones, get smallest one.
+        i_first = np.argmin(np.abs(prof_mjd-mjd_start))
+        if ((prof_mjd[i_first] > mjd_start) & (i_first > 0)): i_first -= 1
+        #i_first = np.where(prof_mjd == mjd_start)[0]
+    else:
+        i_first = 0
+
+    if(mjd_finish != None):    
+        i_last = np.argmin(np.abs(prof_mjd-mjd_finish))
+        if ( (prof_mjd[i_last] < mjd_start) & (i_last< (len(prof_mjd) - 1)) ): i_last += 1
+ #       i_last = np.where(prof_mjd == mjd_finish)[0]
+    else:
+        i_last = len(prof_mjd) - 1
+
+    print ''
+    print 'MJD start  = ', mjd_start,  ' -- prof_mjd[i_first] = ', prof_mjd[i_first], ' -- i_first = ', i_first
+    print 'MJD finish = ', mjd_finish, ' -- prof_mjd[i_last]  = ', prof_mjd[i_last],  ' -- i_last = ', i_last
+    print ''
+
+    # If days_add is negative, then add everything in list
+    if(days_add < 0):
+###        days_add = np.max(prof_mjd) - np.min(prof_mjd) + 10.0 # add some extra days just to be safe
+        days_add = prof_mjd[i_last] - prof_mjd[i_first]  # add some extra days just to be safe
+#        print "DAYS ADD = ", days_add, ' = ', days_add/365.0, ' years'
+        add_all = True
+
+
     # Same number of phase bins for all profiles, pre- and post-added
     prof_phase_out, bin_size = np.linspace(0., 1., num=np.shape(prof)[1], endpoint=False, retstep=True)
     prof_phase_out += bin_size/2.
@@ -860,7 +898,8 @@ def add_xte_prof(profile_in, params, days_add=0.5, align=False, template=None, f
 #    print 'new_mjd = '
     # While we are still before the end of the MJD array
     profile_out = []
-    while(i_first < len(prof_mjd)):
+####    while(i_first < len(prof_mjd)):
+    while(i_first < i_last+1):
         bin_inds = (prof_mjd >= prof_mjd[i_first]) & ( prof_mjd < (prof_mjd[i_first] + days_add) )
         n_prof_out = len(np.where(bin_inds)[0]) # Number of profs going into added prof
         #print prof_mjd[bin_inds]
@@ -910,10 +949,15 @@ def add_xte_prof(profile_in, params, days_add=0.5, align=False, template=None, f
         
     # If there is only one output file, then just make profile_out a single profile (i.e. not an array of profiles)
     if(add_all):
-        profile_out = profile_out[0]
+       profile_out = profile_out[0]
+       pass
 
+#    print 'OUT PROFS = ', profile_out
+#    print 'LEN OUT PROFS = ', len(profile_out)
     return profile_out
     
+
+
 
 def xte_toa(profile, template, params, n_trials=512):
     
@@ -1047,5 +1091,15 @@ def get_pulsed_counts(profile, template, smooth=True):
     
 ##########################################################################################################################
  
+# Little function to read in my format of flux data file:
+def read_flux(infile):
+    flux_data_array = np.loadtxt(infile)
+    flux_data = {'mjd':flux_data_array[:,0], 'mjd_start':flux_data_array[:,1], 'mjd_end':flux_data_array[:,2],
+                'total_counts':flux_data_array[:, 3], 'pulsed_counts':flux_data_array[:, 4], 'pulsed_counts_err':flux_data_array[:, 5],
+                'mjd_span_secs':flux_data_array[:, 6], 'mean_num_pcu':flux_data_array[:, 7], 
+                'count_rate':flux_data_array[:, 8], 'count_rate_err':flux_data_array[:, 9],
+                'pulsed_frac':flux_data_array[:, 10], 'pulsed_frac_err':flux_data_array[:, 11]}
+                
+    return flux_data
 
     
