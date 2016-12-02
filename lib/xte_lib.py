@@ -32,39 +32,39 @@ def xte_chan2energy(ph_mjd, ph_chan, ph_pcuid, return_chans=False):
                   datetime(1996, 4, 15, 23, 5, 0),
                   datetime(1999, 3, 22, 17, 37, 0),
                   datetime(2000, 5, 13, 0, 0, 0)]
-    
+
     stop_date  = [datetime(1996, 3, 21, 18, 33, 0),
                   datetime(1996, 4, 15, 23, 5, 0),
                   datetime(1999, 3, 22, 17, 37, 0),
                   datetime(2000, 5, 13, 0, 0, 0),
                   datetime(3000, 1, 1, 0, 0, 0)]  # just pick a time far in the future here
     n_date = len(start_date)
-    
+
     # Set chan_list to lower limit of channel range instead of a string with dashes...
     chan_list = np.loadtxt(chan_table_file, dtype=str, skiprows=13, usecols=(0,))
     #chan_list = np.append(chan_list, 256)
-    for i_chan in range(len(chan_list)): 
+    for i_chan in range(len(chan_list)):
         n_dash = chan_list[i_chan].count('-')
         if(n_dash > 0):
             chan_list[i_chan] = chan_list[i_chan][0:chan_list[i_chan].index('-')]
     chan_list = np.array(map(int, chan_list))
-    
+
     # Now fill in 'in between' indices and map them to energy index.
     energy_ind = []
     for i_chan in range(len(chan_list)): # Not counting the last element, in which case I will append, not insert
         if(i_chan < len(chan_list)-1):
             n_diff = chan_list[i_chan+1] - chan_list[i_chan]
         else:
-            n_diff = 256 - chan_list[len(chan_list) - 1]            
+            n_diff = 256 - chan_list[len(chan_list) - 1]
         for i_ind in range(n_diff):
             energy_ind.append(i_chan)
     energy_ind = np.array(energy_ind)
 
 #    print 'n_energy = ', len(energy_ind)
-#    print 'energy_ind = ', energy_ind            
-    
-    
-    
+#    print 'energy_ind = ', energy_ind
+
+
+
     # add a final number on the end here for ease of testing ranges
     #print 'n_chan = ', len(chan_list)
     #print 'n_chan = ', len(chan_list)
@@ -74,13 +74,13 @@ def xte_chan2energy(ph_mjd, ph_chan, ph_pcuid, return_chans=False):
 
     # Channel table is now indexed as chan_table[pha_range][date/pcuid]
     # Need to differentiate between PCUOD = 0 OR > 0 for start/stop_date[4]
-    
+
     n_event = len(ph_mjd)
 ##    ph_chan_new = np.zeros_like(ph_chan)
     # Map ph_chan input (0-255) to a row number from table (0-128) using chan_list extracted above
 ##    for i_event in range(n_event):
 #        for i_chan in range(len(chan_list)):
-##        i_chan = 0   
+##        i_chan = 0
 ##        while((i_chan < len(chan_list)-1) and (not (chan_list[i_chan] <= ph_chan[i_event] < chan_list[i_chan+1]))):
            #print 'i_chan = ', i_chan
 ##           i_chan += 1
@@ -89,23 +89,23 @@ def xte_chan2energy(ph_mjd, ph_chan, ph_pcuid, return_chans=False):
 ##            print ' Setting to -1.'
 ##            ph_chan_new[i_event] = -1
 ##        else:
-##            ph_chan_new[i_event] = i_chan 
-                
+##            ph_chan_new[i_event] = i_chan
+
     # Make array of datetime-format dates from MJDs
     ph_datetime = mjd.mjdtodate(ph_mjd)
-    
+
     ph_chan_col = np.zeros_like(ph_datetime) - 1 # initialize to -1
     for i_date in range(n_date):
         if(i_date < 4):
-            match_ind = np.where((ph_datetime > start_date[i_date]) & (ph_datetime < stop_date[i_date]))    
+            match_ind = np.where((ph_datetime > start_date[i_date]) & (ph_datetime < stop_date[i_date]))
             ph_chan_col[match_ind] = i_date
         else:  # to accoutn for final date split between PCUID 0 vs 1/2/3/4
             match_ind = np.where((ph_datetime > start_date[i_date]) & (ph_datetime < stop_date[i_date]) & (ph_pcuid == 0))
             ph_chan_col[match_ind] = 4
             match_ind = np.where((ph_datetime > start_date[i_date]) & (ph_datetime < stop_date[i_date]) & (ph_pcuid > 0))
             ph_chan_col[match_ind] = 5
-                    
-    # Read off energies from table based on PHA channel keyword and date index. 
+
+    # Read off energies from table based on PHA channel keyword and date index.
     # Energies in table are EMAX, so EMIN for a given channel is given as the energy corresponding to channel-1
     # If channel = 0, then EMIN = 0.
     ph_emin = np.array([chan_table[energy_ind[ph_chan[i_event]]-1][ph_chan_col[i_event]] if(energy_ind[ph_chan[i_event]]>0) else 0. for i_event in range(n_event)])
@@ -113,14 +113,14 @@ def xte_chan2energy(ph_mjd, ph_chan, ph_pcuid, return_chans=False):
     ph_emax = np.array([chan_table[energy_ind[ph_chan[i_event]]][ph_chan_col[i_event]] for i_event in range(n_event)])
     ph_emax[ph_chan_col < 0] = -1.
     ph_erange = np.array([(ph_emin[i_event], ph_emax[i_event]) for i_event in range(n_event)])
-    
+
     if(return_chans==True):
         return ph_erange, ph_chan, energy_ind[ph_chan]
     else:
         return ph_erange
-    
-    
-def read_xte_fits(fits_file, efilter=None, etol=0.0):
+
+
+def read_xte_fits(fits_file, efilter=None, chanfilter=None, etol=0.2):
 
     hdulist = fits.open(fits_file, 'readonly')
     data_header = hdulist[1].header
@@ -132,7 +132,7 @@ def read_xte_fits(fits_file, efilter=None, etol=0.0):
     ph_time = data_table['time']
     ph_chan = data_table['pha']
     ph_pcuid = data_table['pcuid']
-    # Close fits file 
+    # Close fits file
     hdulist.close()
     ### Convert times to MJDs ###
     ph_mjd = ph_time/86400.  # first convert to units of days
@@ -141,16 +141,19 @@ def read_xte_fits(fits_file, efilter=None, etol=0.0):
       ph_mjd += data_header['mjdrefi'] + data_header['mjdreff']
     except (Exception):
       ph_mjd += data_header['mjdref'] # where only one number is given; not split into integer/fractional
-            
+
     # Filter data by energy
     # Default if not provided (= all XTE energies) -- will filter out badly marked chans which have been denoted "-1"
-    if (efilter==None):  
-        efilter=[xte_emin, xte_emax]
-                
-    ph_erange, ph_chan, energy_ind = xte_chan2energy(ph_mjd, ph_chan, ph_pcuid, return_chans=True)
-#    ph_erange = xte_chan2energy(ph_mjd, ph_chan, ph_pcuid)
+    if (efilter==None):
+        efilter=[xte_emin, xte_emax] #Now efilter != None
 
-    in_range = np.array([(efilter[0]-etol < ph_erange[i_event][0] < efilter[1]+etol) | (efilter[0]-etol < ph_erange[i_event][1] < efilter[1]+etol) for i_event in range(n_event)])
+    ph_erange, ph_chan, energy_ind = xte_chan2energy(ph_mjd, ph_chan, ph_pcuid, return_chans=True)
+
+    if (chanfilter==None):
+    #    ph_erange = xte_chan2energy(ph_mjd, ph_chan, ph_pcuid)
+        in_range = np.array([(efilter[0]-etol < ph_erange[i_event][0] < efilter[1]+etol) | (efilter[0]-etol < ph_erange[i_event][1] < efilter[1]+etol) for i_event in range(n_event)])
+    else:
+        in_range = (chanfilter[0] < ph_chan[i_event] < chanfilter[1])
 
     ph_mjd = ph_mjd[in_range]
     # ph_energy = ph_energy[in_range]
@@ -158,7 +161,7 @@ def read_xte_fits(fits_file, efilter=None, etol=0.0):
     ph_time = ph_time[in_range]
     ph_chan = ph_chan[in_range]
     ph_pcuid = ph_pcuid[in_range]
-    
+
     # Now sort by MJD
     ind_sort = np.argsort(ph_mjd)
     ph_mjd = ph_mjd[ind_sort]
@@ -166,11 +169,11 @@ def read_xte_fits(fits_file, efilter=None, etol=0.0):
     ph_time = ph_time[ind_sort]
     ph_chan = ph_chan[ind_sort]
     ph_pcuid = ph_pcuid[ind_sort]
-    
-    
+
+
     ph_data = {'time':ph_time, 'mjd':ph_mjd, 'chan':ph_chan, 'energy_ind':energy_ind, 'pcuid':ph_pcuid, 'erange':ph_erange,
                 'datafile':fits_file}
-    
+
     return ph_data
 
 
@@ -178,10 +181,10 @@ def read_xte_fits(fits_file, efilter=None, etol=0.0):
 # Can optionally input an RA and Dec (in degrees) for which offset from actual pointing will be calculated.
 # Default will be to calculate offset from barycentred RA, Dec.
 def get_xte_pointing(xte_fits_file, ra=None, dec=None):
-    
+
     # make into a loop of fits files
-    
-    
+
+
     hdulist = fits.open(xte_fits_file, 'readonly')
     primary_header = hdulist[0].header
     data_header = hdulist[1].header
@@ -192,7 +195,7 @@ def get_xte_pointing(xte_fits_file, ra=None, dec=None):
         mean_mjd = mean_time + data_header['mjdrefi'] + data_header['mjdreff']
     except (Exception):
         mean_mjd = mean_time + data_header['mjdref'] # where only one number is given; not split into integer/fractional
-    
+
     # Start dictionary, reading pointing coordinates and get mean MJD of observation
     pnt_info = {'mjd':mean_mjd}
     pnt_info['ra_pnt'] = data_header['ra_pnt']
@@ -226,16 +229,16 @@ def get_xte_pointing(xte_fits_file, ra=None, dec=None):
             c_pnt = SkyCoord(ra=pnt_info['ra_pnt'], dec=pnt_info['dec_pnt'], frame='icrs', unit='deg')
             c_ref = SkyCoord(ra=ref_ra, dec=ref_dec, frame='icrs', unit='deg')
             pnt_info['sep'] = c_ref.separation(c_pnt).deg
-            
-    
-    # Close fits file 
+
+
+    # Close fits file
     hdulist.close()
-   
+
     #print ''
     #print 'pnt_info: ', pnt_info
     #print ''
     return pnt_info
-    
+
 
 # Return array of collimator responses for an input pointing offset array.
 # Pointing offset should be given in degrees
@@ -246,8 +249,8 @@ def get_pca_col_response(pnt_offset):
     # Given array of input pointing offsets, get back response values
     offset_arcmin = pnt_offset*60.
     response = gaussian(offset_arcmin, A, mu, sig)
-    return response    
-        
+    return response
+
 # Pointing offset should be given in degrees
 # This is calculated from a response function found from calibration using the Crab.
 def get_pca_col_response_crab(pnt_offset):
@@ -260,8 +263,8 @@ def get_pca_col_response_crab(pnt_offset):
     offset_deg = pnt_offset
     response = ius(offset_deg)/y_peak
     return response
-        
-    
+
+
 # Get start and end dates covered by given filter file
 # Works for data files and filter files
 def get_xte_mjd_range(xte_fits_files, strip_path=False):
@@ -280,19 +283,19 @@ def get_xte_mjd_range(xte_fits_files, strip_path=False):
         except (Exception):
           mjd0 += data_header['mjdref'] # where only one number is given; not split into integer/fractional
           mjd1 += data_header['mjdref'] # where only one number is given; not split into integer/fractional
-    
+
         mjd_start.append(mjd0)
         mjd_end.append(mjd1)
         if(strip_path):
             outfile.append(ffile[ffile.rindex('/') + 1:]) # remove path from filename string
         else:
             outfile.append(ffile)
-    
+
         hdulist.close()
     xte_file_mjd = {'file':np.array(outfile), 'mjd_start':np.array(mjd_start), 'mjd_end':np.array(mjd_end)}
-    return xte_file_mjd    
-    
-    
+    return xte_file_mjd
+
+
 # Get number of PCUs working at a given epoch, via XTE filter file
 # Returns corresponding MJD and n_pcu_on a
 # Allow for multiple files
@@ -306,17 +309,17 @@ def get_xte_num_pcu_on(filter_file, filter_pcu_mjd=True):
         data_table = hdulist[1].data
         n_epoch = len(data_table)
         #n_pcu = 5
-                
-                
+
+
         mjd_cur = data_table['time']/86400.
         try:
             mjd_cur += data_header['mjdrefi'] + data_header['mjdreff']
         except (Exception):
             mjd_cur += data_header['mjdref'] # where only one number is given; not split into integer/fractional
         mjd = np.append(mjd, mjd_cur)
-        
+
         num_pcu_on_cur = data_table['num_pcu_on']
-        
+
         # Hardcode exclusion of PCU0 data on or after 12 May 2000 (MJD 51676), due to loss of propane layer
         # and exclusion of PCU1 data on or after 25 Dec 2006 (MJD 54094), also due to loss of propane layer
         # BE FOREWARNED that you should ensure that profile data has also accounted for these exclusions!  Otherwise they won't match!
@@ -328,29 +331,29 @@ def get_xte_num_pcu_on(filter_file, filter_pcu_mjd=True):
 
         num_pcu_on = np.append(num_pcu_on, num_pcu_on_cur)
             #num_pcu_on_cur = num_pcu_on_cur - n_exclude_pcu
-    
-        
+
+
 #####        for i_epoch in range(n_epoch):
 #####            mjd_cur = data_table[i_epoch]['time']/86400.
-            
+
             #mjd_cur = np.array([data_table[i_epoch]['time']/86400. for i_epoch in range(n_epoch)])
 #####            try:
 #####                mjd_cur += data_header['mjdrefi'] + data_header['mjdreff']
 #####            except (Exception):
 #####                mjd_cur += data_header['mjdref'] # where only one number is given; not split into integer/fractional
-                
+
 #####            mjd.append(mjd_cur)
             #pcu_on = []
             #for i_pcu in range(n_pcu):
             #    pcu_on.append([data_table[i_epoch]['pcu'+str(i_pcu)+'_on'] for i_epoch in range(n_epoch)])
-            #pcu_on = np.array(pcu_on)   
-    
+            #pcu_on = np.array(pcu_on)
+
 #####            num_pcu_on_cur = data_table[i_epoch]['num_pcu_on']
         #num_pcu_on_cur = np.array([data_table[i_epoch]['num_pcu_on'] for i_epoch in range(n_epoch)])
         ### Convert times to MJDs ###
         #  mjd_cur = epochs/86400.  # first convert to units of days
         # To cover header value possibilities
-        
+
         # Hardcode exclusion of PCU0 data on or after 12 May 2000 (MJD 51676), due to loss of propane layer
         # and exclusion of PCU1 data on or after 25 Dec 2006 (MJD 54094), also due to loss of propane layer
         # BE FOREWARNED that you should ensure that profile data has also accounted for these exclusions!  Otherwise they won't match!
@@ -361,21 +364,21 @@ def get_xte_num_pcu_on(filter_file, filter_pcu_mjd=True):
 #####                if( (mjd_cur >= 54094.0) & data_table[i_epoch]['pcu1_on']):
 #####                    n_exclude_pcu += 1
 #####                num_pcu_on_cur = num_pcu_on_cur - n_exclude_pcu
-                
+
 #####            num_pcu_on.append(num_pcu_on_cur)
-    
+
 #####        hdulist.close()
 #####        mjd = np.array(mjd)
 #####        num_pcu_on = np.array(num_pcu_on)
-    
+
     n_pcu_on = {'time':data_table['time'], 'mjd':mjd, 'num':num_pcu_on}
-    
+
     return n_pcu_on
     #return mjd, num_pcu_on
-    
-    
-    
-      
+
+
+
+
 # Given date range and get_xte_mjd_range() output (list of filter files and start/end dates for each),
 # find mean # of PCUs that are on from within the specified date range
 def get_mean_num_pcu(filter_file_mjd, mjd_start, mjd_end):
@@ -384,11 +387,11 @@ def get_mean_num_pcu(filter_file_mjd, mjd_start, mjd_end):
 
     ind_file = np.where(mjd_condition)[0]
     filter_files_select = filter_file_mjd['file'][ind_file]
-    
+
     n_filter_files = len(filter_files_select)
 
     if(n_filter_files > 0):
-        # Now grab all num_PCUs on from each file, and order them by MJD.  
+        # Now grab all num_PCUs on from each file, and order them by MJD.
         n_pcu_on = get_xte_num_pcu_on(filter_files_select)
         # Include only dates of interest:  (epoch <= start_mjd & epoch+1 > start_mjd) & (epoch > end_mjd & epoch-1 < end_mjd)
         # Get rid of anything < 1 and > 5 (will usually be set to 255 in the case of a default bad value)
@@ -398,12 +401,12 @@ def get_mean_num_pcu(filter_file_mjd, mjd_start, mjd_end):
         mean_num_pcu = np.mean(n_pcu_on_subset)
     else:
         mean_num_pcu = -1
-    
+
     return mean_num_pcu
 
 
 def get_filter_file_info(filter_file, n_epoch_per_bin=None, n_bin=1):
-    
+
     hdulist = fits.open(filter_file, 'readonly')
     data_header = hdulist[1].header
     data_table = hdulist[1].data
@@ -416,8 +419,8 @@ def get_filter_file_info(filter_file, n_epoch_per_bin=None, n_bin=1):
             n_bin = n_epoch/n_epoch_per_bin
         else:
             n_epoch_per_bin = n_epoch/n_bin
-   
-    
+
+
         # collect data in each bin and take means for plotting
         mjd = []
         mean_num_pcu = []
@@ -438,34 +441,34 @@ def get_filter_file_info(filter_file, n_epoch_per_bin=None, n_bin=1):
         electron3_err = []
         electron4 = []
         electron4_err = []
-    
+
         for i_bin in np.arange(n_bin):
             # Now time in seconds
-            mjd.append( np.mean(data_table[i_bin*n_epoch_per_bin:(i_bin+1)*n_epoch_per_bin]['time']/86400.) ) 
-        
+            mjd.append( np.mean(data_table[i_bin*n_epoch_per_bin:(i_bin+1)*n_epoch_per_bin]['time']/86400.) )
+
             # Number of PCUs on
-            n_pcu_on = data_table[i_bin*n_epoch_per_bin:(i_bin+1)*n_epoch_per_bin]['num_pcu_on'] 
+            n_pcu_on = data_table[i_bin*n_epoch_per_bin:(i_bin+1)*n_epoch_per_bin]['num_pcu_on']
             # get rid of anything that has weird values
             pcu_condition = (n_pcu_on >= 0) & (n_pcu_on <= 5)
             mean_num_pcu.append( np.mean(n_pcu_on[pcu_condition]) )
             # take std dev to be error on quantity, and for other quantities
             mean_num_pcu_err.append( np.std(n_pcu_on[pcu_condition]) )
-        
+
             # Elevation angle, to see if there were any Earth occultations
             elv = data_table[i_bin*n_epoch_per_bin:(i_bin+1)*n_epoch_per_bin]['elv']
             elv_angle.append( np.mean(elv) )
             elv_angle_err.append( np.std(elv) )
-        
+
             # Offset, to determine pointing stability
             offset = data_table[i_bin*n_epoch_per_bin:(i_bin+1)*n_epoch_per_bin]['offset']
             pnt_offset.append( np.mean(offset) )
             pnt_offset_err.append( np.std(offset) )
-        
+
             # time_since_saa, to determine if the Southern Atlantic Anomaly significantly affected the background levels
             t_saa = data_table[i_bin*n_epoch_per_bin:(i_bin+1)*n_epoch_per_bin]['time_since_saa']
             time_saa.append( np.mean(t_saa) )
             time_saa_err.append( np.std(t_saa) )
-        
+
             e0 = data_table[i_bin*n_epoch_per_bin:(i_bin+1)*n_epoch_per_bin]['electron0']
             electron0.append( np.mean(e0) )
             electron0_err.append( np.std(e0) )
@@ -485,7 +488,7 @@ def get_filter_file_info(filter_file, n_epoch_per_bin=None, n_bin=1):
             e4 = data_table[i_bin*n_epoch_per_bin:(i_bin+1)*n_epoch_per_bin]['electron4']
             electron4.append( np.mean(e4) )
             electron4_err.append( np.std(e4) )
-    
+
         # Now have a set of values for this file.  Make into numpy arrays, sorted by MJD:
         mjd = np.array(mjd)
         # convert times to MJDs
@@ -514,9 +517,9 @@ def get_filter_file_info(filter_file, n_epoch_per_bin=None, n_bin=1):
         electron3_err = np.array(electron3_err)[ind_sort]
         electron4 = np.array(electron4)[ind_sort]
         electron4_err = np.array(electron4_err)[ind_sort]
-    
-        
-     
+
+
+
         # Time since various breakdowns, for each PCU
     #    t_brk0 = data_table['time_since_brk0']
     #    t_brk1 = data_table['time_since_brk1']
@@ -524,29 +527,29 @@ def get_filter_file_info(filter_file, n_epoch_per_bin=None, n_bin=1):
     #    t_brk3 = data_table['time_since_brk3']
     #    t_brk4 = data_table['time_since_brk4']
     #    t_brk = data_table['time_since_brk']  # This is the union of the times since breakdown for all PCUs
-    
-        filter_info = {'mjd':mjd, 'elv':elv_angle, 'elv_err':elv_angle_err, 'offset':pnt_offset, 'offset_err':pnt_offset_err, 
+
+        filter_info = {'mjd':mjd, 'elv':elv_angle, 'elv_err':elv_angle_err, 'offset':pnt_offset, 'offset_err':pnt_offset_err,
                        't_saa':time_saa, 't_saa_err':time_saa_err, 'mean_num_pcu':mean_num_pcu, 'mean_num_pcu_err':mean_num_pcu_err,
                        'electron0':electron0, 'electron1':electron1, 'electron2':electron2, 'electron3':electron3, 'electron4':electron4,
-                       'electron0_err':electron0_err, 'electron1_err':electron1_err, 'electron2_err':electron2_err, 
-                       'electron3_err':electron3_err, 'electron4_err':electron4_err}                  
+                       'electron0_err':electron0_err, 'electron1_err':electron1_err, 'electron2_err':electron2_err,
+                       'electron3_err':electron3_err, 'electron4_err':electron4_err}
                        #'t_brk0':t_brk0, 't_brk1':t_brk1, 't_brk2':t_brk2, 't_brk3':t_brk3, 't_brk4':t_brk4, 't_brk':t_brk}
-                   
-                   
-                   
-    
+
+
+
+
     return filter_info
 
 
 # One file no binning version
 
 def get_filter_file_info_nobin(filter_file):
-    
+
     hdulist = fits.open(filter_file, 'readonly')
     data_header = hdulist[1].header
     data_table = hdulist[1].data
     n_epoch_file = len(data_table)
-    
+
     # Now time in seconds
     mjd = data_table['time']/86400.
     # convert times to MJDs
@@ -554,12 +557,12 @@ def get_filter_file_info_nobin(filter_file):
         mjd += data_header['mjdrefi'] + data_header['mjdreff']
     except (Exception):
         mjd += data_header['mjdref'] # where only one number is given; not split into integer/fractional
-    
+
     # Sort by MJD
     ind_sort = np.argsort(mjd)
     mjd = mjd[ind_sort]
-    
-        
+
+
     # Number of PCUs on.  Initialize output arrays as False and then only change if value == 1
     # Doing it this way since values can be 255 as well as 0 for False...
     pcu0_on = np.zeros_like(mjd, dtype=bool)
@@ -584,28 +587,28 @@ def get_filter_file_info_nobin(filter_file):
     #        mean_num_pcu.append( np.mean(n_pcu_on[pcu_condition]) )
     # take std dev to be error on quantity, and for other quantities
     #        mean_num_pcu_err.append( np.std(n_pcu_on[pcu_condition]) )
-        
+
     # Elevation angle, to see if there were any Earth occultations
     elv = data_table['elv'][ind_sort]
     #        elv_angle.append( np.mean(elv) )
     #        elv_angle_err.append( np.std(elv) )
-        
+
     # Offset, to determine pointing stability
     offset = data_table['offset'][ind_sort]
     #        pnt_offset.append( np.mean(offset) )
     #        pnt_offset_err.append( np.std(offset) )
-        
+
     # time_since_saa, to determine if the Southern Atlantic Anomaly significantly affected the background levels
     t_saa = data_table['time_since_saa'][ind_sort]
 #        time_saa.append( np.mean(t_saa) )
 #        time_saa_err.append( np.std(t_saa) )
-        
+
     electron0 = data_table['electron0'][ind_sort]
     electron1 = data_table['electron1'][ind_sort]
     electron2 = data_table['electron2'][ind_sort]
     electron3 = data_table['electron3'][ind_sort]
     electron4 = data_table['electron4'][ind_sort]
-    
+
     # Time since various breakdowns, for each PCU
     if('t_brk0' in data_table):
         t_brk0 = data_table['time_since_brk0'][ind_sort]
@@ -631,7 +634,7 @@ def get_filter_file_info_nobin(filter_file):
         t_brk = data_table['time_since_brk'][ind_sort]
     else:
         t_brk = -1
-    
+
     # Time since various breakdowns, for each PCU
 #    t_brk0 = data_table['time_since_brk0']
 #    t_brk1 = data_table['time_since_brk1']
@@ -640,13 +643,13 @@ def get_filter_file_info_nobin(filter_file):
 #    t_brk4 = data_table['time_since_brk4']
 #    t_brk = data_table['time_since_brk']  # This is the union of the times since breakdown for all PCUs
 
-    
-    
-    filter_info = {'mjd':mjd, 'elv':elv, 'offset':offset, 't_saa':t_saa, 
+
+
+    filter_info = {'mjd':mjd, 'elv':elv, 'offset':offset, 't_saa':t_saa,
                    'pcu0_on':pcu0_on, 'pcu1_on':pcu1_on, 'pcu2_on':pcu2_on, 'pcu3_on':pcu3_on, 'pcu4_on':pcu4_on, 'num_pcu_on':num_pcu_on,
                    'electron0':electron0, 'electron1':electron1, 'electron2':electron2, 'electron3':electron3, 'electron4':electron4,
                    't_brk0':t_brk0, 't_brk1':t_brk1, 't_brk2':t_brk2, 't_brk3':t_brk3, 't_brk4':t_brk4, 't_brk':t_brk}
-    
+
     return filter_info
 
 # Find mask for each event based on exclusion criteria suggested by the RXTE cookbook:
@@ -676,7 +679,7 @@ def get_xte_event_filter_mask(ph_data, filter_file_mjd):
     # This will make the output array compatible as a mask
     ph_mask = np.zeros_like(ph_data['mjd'], dtype=int)
     for i_filter in range(len(filter_files_select)):
-    
+
         # Get filter file info for this particular filter file
         ffinfo = get_filter_file_info_nobin(filter_files_select[i_filter])
         # Initialize filter_weights to be zero for current file
@@ -689,7 +692,7 @@ def get_xte_event_filter_mask(ph_data, filter_file_mjd):
         elec2_condition = (np.isnan(ffinfo['electron2'])) | (ffinfo['electron2'] > 0.1) # Electron contamination
         all_condition = (pcu_condition | elv_condition | offset_condition | elec2_condition)# | pcu0_condition | pcu1_condition))
         filter_weight[all_condition] = 1  # 1 means that it is to be masked
-            
+
         # copy weight to all MJDs in event data that correspond to given filter file MJD
         ph_mjd_condition = (ph_data['mjd'] > np.min(ffinfo['mjd'])) & (ph_data['mjd'] <= np.max(ffinfo['mjd']))
         ind_ph_mjd = np.where( ph_mjd_condition )[0]
@@ -699,7 +702,7 @@ def get_xte_event_filter_mask(ph_data, filter_file_mjd):
         # i.e., if data MJD is between MJD1 and MJD2 in filter file, then go with MJD2 values
         ind_filter = np.searchsorted(ffinfo['mjd'], ph_data['mjd'][ind_ph_mjd], side='right')
         ph_mask[ind_ph_mjd] = filter_weight[ind_filter]
-    
+
 #        print np.min(ffinfo['mjd'])
 #        print np.max(ffinfo['mjd'])
 #        print ph_data['mjd']
@@ -710,7 +713,7 @@ def get_xte_event_filter_mask(ph_data, filter_file_mjd):
     #    print ph_data['mjd'][ind_ph_mjd]
     #    print ind_filter
 #        print ffinfo['mjd'][ind_filter]
-        
+
     # Finally set weights to zero if they meet the PCU0 and PCU1 exclusion criteria due to propane layer loss:
     pcu0_condition = (np.isnan(ph_data['pcuid'])) | ((ph_data['mjd'] >= 51676.0) & (ph_data['pcuid'] == 0))
     pcu1_condition = (np.isnan(ph_data['pcuid'])) | ((ph_data['mjd'] >= 54094.0) & (ph_data['pcuid'] == 1))
@@ -719,7 +722,7 @@ def get_xte_event_filter_mask(ph_data, filter_file_mjd):
     return ph_mask
 
 
-    
+
 # Now read in a par file and then fold data into profiles
 # Read par file
 def fold_event_prof(ph_mjd, par_file, nbins=16):
@@ -734,14 +737,14 @@ def fold_event_prof(ph_mjd, par_file, nbins=16):
     while (len(np.where(ph_phase > 1.0)[0]) > 0 ): # Need the [0] because output is a tuple...
         above_zero_ind = np.where(ph_phase > 1.0)
         ph_phase[below_zero_ind] -= 1.0
-    
-        
+
+
     # Now histogram phases to create profile for a given number of bins (and thus bin size), and give user option to split data into N equal parts
     prof, bin_edges = np.histogram(ph_phase, bins=nbins, range=(0.,1.))
     bin_size = (bin_edges[1] - bin_edges[0])
     bin_val = bin_edges[0: len(bin_edges)-1] + bin_size/2.
     prof_err = np.sqrt(prof)
-    # Calculate central MJD and MJD span for profile from min/max event MJDs 
+    # Calculate central MJD and MJD span for profile from min/max event MJDs
     if(len(ph_mjd) > 0):
         mjd_mean = 0.5*(np.min(ph_mjd) + np.max(ph_mjd))
         mjd_span = np.max(ph_mjd) - np.min(ph_mjd)
@@ -759,7 +762,7 @@ def fold_event_prof(ph_mjd, par_file, nbins=16):
         ref_freq = 0.
     profile = {'i':prof, 'i_err':prof_err, 'phase':bin_val, 'mjd':mjd_mean, 'mjd_span': mjd_span, 'psrname':params['psr'], 'ref_phase':ref_phase, 'ref_freq':ref_freq}
     return profile
-    
+
 
 def read_xte_prof(proffile):
     # Read header
@@ -772,7 +775,7 @@ def read_xte_prof(proffile):
     else:
         ref_freq = 0.0
     # Read time span if in header
-    if(len(header) > 12): 
+    if(len(header) > 12):
         mjd_span = float(header[12])
     psr_name = header[10]
     ref_phase = float(header[11])
@@ -788,35 +791,35 @@ def read_xte_prof(proffile):
         prof = {'i':prof_i, 'i_err':prof_i_err, 'phase':phase, 'mjd':prof_mjd, 'psrname':psr_name, 'ref_phase':ref_phase, 'ref_freq':ref_freq, 'mjd_span':mjd_span}
     else:
         prof = {'i':prof_i, 'i_err':prof_i_err, 'phase':phase, 'mjd':prof_mjd, 'psrname':psr_name, 'ref_phase':ref_phase, 'ref_freq':ref_freq}
-    
+
     return prof
-    
+
 # Write profile to file
 def write_xte_prof(prof, proffile=None):
     # Calculate integer and fractional components of MJD:
     imjd = np.int_(prof['mjd'])
     fmjd = prof['mjd'] - np.float_(imjd)
-    # Seconds after UT 00:00 
+    # Seconds after UT 00:00
     smjd = fmjd*86400.0
     if(proffile==None):
         proffile = prof['psrname']+'_'+str(imjd)+'_'+str(np.int_(smjd))+'_xte_prof.asc'
     # open file for writing
     f_prof = open(proffile, 'w')
     if(prof['ref_freq'] > 0.0):
-        ref_period = 1.0/prof['ref_freq'] 
+        ref_period = 1.0/prof['ref_freq']
     else:
-        ref_period = 0.0  
-    if prof.has_key('mjd_span'):  
+        ref_period = 0.0
+    if prof.has_key('mjd_span'):
         header = '# {0:5d}.0 {1:13.7f} {2:.12f} 1 0.0 0.0 {3:d} @ 1 {4} {5:.12f} {6:.7f}\n'.format(imjd, smjd, ref_period, len(prof['i']), prof['psrname'], prof['ref_phase'], prof['mjd_span'])
     else:
-        header = '# {0:5d}.0 {1:13.7f} {2:.12f} 1 0.0 0.0 {3:d} @ 1 {4} {5:.12f}\n'.format(imjd, smjd, ref_period, len(prof['i']), prof['psrname'], prof['ref_phase'])            
+        header = '# {0:5d}.0 {1:13.7f} {2:.12f} 1 0.0 0.0 {3:d} @ 1 {4} {5:.12f}\n'.format(imjd, smjd, ref_period, len(prof['i']), prof['psrname'], prof['ref_phase'])
 #    print header
     f_prof.write(header)
     for i_bin in range(len(prof['i'])):
         f_prof.write('{0:6d} {1:.1f}\n'.format(i_bin, prof['i'][i_bin]))
     f_prof.close()
-    
-    
+
+
 # Simple profile plot
 def plot_xte_prof(prof):
     # Plot twice for clarity :)
@@ -824,29 +827,29 @@ def plot_xte_prof(prof):
     plt.errorbar(np.append(prof['phase'], prof['phase']+1.0), np.append(prof['i'], prof['i']), yerr=np.append(prof['i_err'], prof['i_err']), ecolor='blue', fmt=None, capsize=0)
     plt.xlabel('Pulse phase')
     plt.ylabel('Counts')
-    
+
 
 # Add profs together by date.  Input is list of profile dictionaries
 # Output is list of added profile dictionaries
 # Also, need parameters as read from a par file or otherwise, to recalculate reference phases and frequencies
 def add_xte_prof(profile_in, params, days_add=0.5, mjd_start=None, mjd_finish=None, align=False, template=None, filter_files=None):
-    
+
     # Assume we are not adding all profs together to start
     add_all = False
 
     if((mjd_start != None) & (mjd_finish != None) & (mjd_start > mjd_finish)):
         print 'WARNING: mjd_start is not suppoed to be greater than mjd_finish'
-    
+
     n_prof_in = len(profile_in)
     prof = []
     prof_mjd = []
     for prof_in in profile_in:
         prof.append(prof_in['i'])
         prof_mjd.append(prof_in['mjd'])
-        
+
     prof = np.array(prof)
     prof_mjd = np.array(prof_mjd)
-    
+
     # Sort profs by MJD
     sort_ind = np.argsort(prof_mjd)
     prof_mjd = prof_mjd[sort_ind]
@@ -859,7 +862,7 @@ def add_xte_prof(profile_in, params, days_add=0.5, mjd_start=None, mjd_finish=No
     #if(mjd_start  != None): prof = prof[prof_mjd >= mjd_start]
     #if(mjd_finish != None): prof = prof[prof_mjd <= mjd_finish]
 
-    
+
     # Initialize starting index
     if(mjd_start != None):
         # Get mjd differences between prof_mjd and mjd_start, take abs of negative ones, get smallest one.
@@ -869,7 +872,7 @@ def add_xte_prof(profile_in, params, days_add=0.5, mjd_start=None, mjd_finish=No
     else:
         i_first = 0
 
-    if(mjd_finish != None):    
+    if(mjd_finish != None):
         i_last = np.argmin(np.abs(prof_mjd-mjd_finish))
         if ( (prof_mjd[i_last] < mjd_start) & (i_last< (len(prof_mjd) - 1)) ): i_last += 1
  #       i_last = np.where(prof_mjd == mjd_finish)[0]
@@ -903,7 +906,7 @@ def add_xte_prof(profile_in, params, days_add=0.5, mjd_start=None, mjd_finish=No
         bin_inds = (prof_mjd >= prof_mjd[i_first]) & ( prof_mjd < (prof_mjd[i_first] + days_add) )
         n_prof_out = len(np.where(bin_inds)[0]) # Number of profs going into added prof
         #print prof_mjd[bin_inds]
-    
+
         current_profs = prof[bin_inds]
         #print np.shape(current_profs), np.shape(prof), n_prof_out
         # Now, if we want to align profiles before adding, do so, rotating profiles in place:
@@ -923,15 +926,15 @@ def add_xte_prof(profile_in, params, days_add=0.5, mjd_start=None, mjd_finish=No
                     if(i_prof != i_template):
                         current_profs[i_prof] = prof_align(current_profs[i_prof], current_profs[i_template])
             # If we have a template, just use it:
-            else:                
+            else:
                 for i_prof in range(n_prof_out):
                     current_profs[i_prof] = prof_align(current_profs[i_prof], template)
-    
+
         # Now, just add!
         prof_out = np.sum(current_profs, 0)  # I think 0 dim is time, and 1 is phase bins.  This way, preserve phase bins.\
         prof_err_out = np.sqrt(prof_out)
         # Calculate central MJD based on min and max (central) MJD in sub-array
-        prof_mjd_out = 0.5*(np.min(prof_mjd[bin_inds]) + np.max(prof_mjd[bin_inds])) 
+        prof_mjd_out = 0.5*(np.min(prof_mjd[bin_inds]) + np.max(prof_mjd[bin_inds]))
         # Calculate ref phase and period for this MJD:
         prof_ref_phase = pu.calc_phs(prof_mjd_out, params['pepoch'], params['f'][0], params['f'][1], params['f'][2], params['f'][3])
             # Cast to be between 0 and 1
@@ -946,7 +949,7 @@ def add_xte_prof(profile_in, params, days_add=0.5, mjd_start=None, mjd_finish=No
         profile_out.append({'i':prof_out, 'i_err':prof_err_out, 'phase':prof_phase_out, 'mjd':prof_mjd_out, 'psrname':params['psr'], 'ref_phase':prof_ref_phase, 'ref_freq':prof_ref_freq})
         # Now increase i_first to point to the beginning of next set
         i_first = np.where(bin_inds)[0][-1] + 1  # = last index of previous set of indices, plus 1
-        
+
     # If there is only one output file, then just make profile_out a single profile (i.e. not an array of profiles)
     if(add_all):
        profile_out = profile_out[0]
@@ -955,21 +958,21 @@ def add_xte_prof(profile_in, params, days_add=0.5, mjd_start=None, mjd_finish=No
 #    print 'OUT PROFS = ', profile_out
 #    print 'LEN OUT PROFS = ', len(profile_out)
     return profile_out
-    
+
 
 
 
 def xte_toa(profile, template, params, n_trials=512):
-    
+
     print 'Number of TOA trials per profile: ', n_trials
-    
+
     # If given only one profile, just make it into a one-element list:
     if type(profile) is not list:
         profile = [profile]
-    
+
     # First get amplitudes and phases from FFTing the input template profile
     t_prof_fft, t_prof_amp, t_prof_phase = cprof(template['i'])
-        
+
     n_prof = len(profile)
     toa_int = []
     toa_frac = []
@@ -977,18 +980,18 @@ def xte_toa(profile, template, params, n_trials=512):
     time_lapse = []
     i_prof = 0
     for prof in profile:
-        # Run a number of trials, sampling profiles from a Poisson distribution each time, and get out an 
+        # Run a number of trials, sampling profiles from a Poisson distribution each time, and get out an
         # mean TOA and TOA err that is equal to the std dev of the resulting distribution of TOAs
         shift = []
         stt_time = time.time()
         for i_trial in range(n_trials):
-            
+
             # Create trial profile by sampling from a Poisson distribution based on counts in each bin
             prof_trial = np.random.poisson(prof['i'])
-            # Get shift between template and profile, in bins:            
+            # Get shift between template and profile, in bins:
             # Now run fftfit to match the profiles and out the shifts and scales
             shift_trial,eshift,snr,esnr,b,errb,ngood = fftfit(prof_trial,t_prof_amp,t_prof_phase)
-        
+
             n_bins = len(prof['i'])
             # ensure that shift is not negative, and less than nbins-1
             while(shift_trial <= 0.0):
@@ -1005,7 +1008,7 @@ def xte_toa(profile, template, params, n_trials=512):
         shift = np.array(shift)
         shift_mean = np.mean(shift)
         shift_err = np.std(shift)
-        
+
         # Convert to a shift in phase, and then time in days based on current pulse period:
         shift_phase = shift_mean/float(n_bins)
         shift_err_phase = shift_err/float(n_bins)
@@ -1027,51 +1030,51 @@ def xte_toa(profile, template, params, n_trials=512):
         toa_frac.append(toa_f - extra_days)
         # Get final TOA error
         toa_err.append(1.0e6*shift_err_phase/prof['ref_freq']) # convert from secs to microsecs
-        
+
 #        i_prof += 1
 #        print 'prof ', i_prof
 
- 
+
     time_lapse = np.array(time_lapse)
     mean_time_lapse = np.mean(time_lapse) # in minutes
     print 'Mean time per profile: ', mean_time_lapse*1000., 'ms'
     print 'Total time taken: ', np.sum(time_lapse), 'sec'
-    
+
     # Finally, package results into dictionary format:
     toa_int = np.array(toa_int)
     toa_frac = np.array(toa_frac)
     toa_err = np.array(toa_err)
     toa = {'toa_int':toa_int, 'toa_frac':toa_frac, 'toa_err':toa_err}
-        
+
     return toa
 
-   
+
 # Functiopn to apply Anne's flux code to my XTE data
 def get_pulsed_counts(profile, template, smooth=True):
-    
+
     n_harmonics = 5
-    
+
     profile_err = np.sqrt(profile)
     template_err = np.sqrt(template)
-    
+
     # Input profile
     total_flux = np.mean(profile)
     rms_value, rms_uncertainty = rms_estimator(n_harmonics)(profile, profile_err)
     print "RMS pulsed flux:            \t%#0.7g\t+/-\t%#0.7g" % (rms_value, rms_uncertainty)
     print "RMS pulsed fraction:        \t%#0.7g\t+/-\t%#0.7g" % (rms_value/total_flux, rms_uncertainty/total_flux)
-    
+
     # Now, template:
     t_value, t_uncertainty = rms_estimator(n_harmonics)(template, np.zeros(len(template)))
     scal = np.mean(template-amin(template))/t_value
     print "RMS to area scaling factor: \t\t%#0.7g" % scal
     print "Scaled RMS pulsed flux:     \t%#0.7g\t+/-\t%#0.7g" % (rms_value*scal, rms_uncertainty*scal)
     print "Scaled RMS pulsed fraction: \t%#0.7g\t+/-\t%#0.7g" % (rms_value*scal/total_flux, rms_uncertainty*scal/total_flux)
-    
+
     # Set up off_pulse bin calculation:
     off_pulse_bins = None
     off_pulse_threshold = True
 #    compute_area = True
-    
+
     # default is to estimate baseline via smoothing algortithm
     if smooth:
         E = smoothed_minimum_estimator(template,
@@ -1086,20 +1089,18 @@ def get_pulsed_counts(profile, template, smooth=True):
     (v, u) = E(profile, profile_err)
     print "Area pulsed flux:           \t%#0.7g\t+/-\t%#0.7g" % (v,u)
     print "Area pulsed fraction:       \t%#0.7g\t+/-\t%#0.7g" % (v/total_flux,u/total_flux)
-    
+
     return rms_value, rms_uncertainty, rms_value/total_flux, rms_uncertainty/total_flux
-    
+
 ##########################################################################################################################
- 
+
 # Little function to read in my format of flux data file:
 def read_flux(infile):
     flux_data_array = np.loadtxt(infile)
     flux_data = {'mjd':flux_data_array[:,0], 'mjd_start':flux_data_array[:,1], 'mjd_end':flux_data_array[:,2],
                 'total_counts':flux_data_array[:, 3], 'pulsed_counts':flux_data_array[:, 4], 'pulsed_counts_err':flux_data_array[:, 5],
-                'mjd_span_secs':flux_data_array[:, 6], 'mean_num_pcu':flux_data_array[:, 7], 
+                'mjd_span_secs':flux_data_array[:, 6], 'mean_num_pcu':flux_data_array[:, 7],
                 'count_rate':flux_data_array[:, 8], 'count_rate_err':flux_data_array[:, 9],
                 'pulsed_frac':flux_data_array[:, 10], 'pulsed_frac_err':flux_data_array[:, 11]}
-                
-    return flux_data
 
-    
+    return flux_data

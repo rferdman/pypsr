@@ -561,6 +561,66 @@ def prof_align(prof, template_prof, return_more=False):
       return prof_rot
 
 
+# def for fitting multiple gaussians but allowing for automated guessing
+def prof_model_gauss(profile_data, ngauss=1, verbose=False):
+
+    nbins = len(profile_data)
+    bins =  np.arange(nbins, dtype=float)
+    # print 'bins = ', bins
+    n_roll_bins = int(nbins/2) - np.argmax(profile_data)
+    ###n_roll_bins = int(nbins/2) - np.argmax(test_gauss_multi)
+    # print 'n_roll_bins = ', n_roll_bins
+    profile_centre = np.roll(profile_data, n_roll_bins)
+    ###profile_centre = np.roll(test_gauss_multi, n_roll_bins)
+
+    #plt.step(bins, profile_centre, lw=2, color='black') 
+    #plt.errorbar(bins-0.5, profile_centre, yerr=np.sqrt(profile_centre), fmt=None, capsize=0, ecolor='black')
+    #plt.xlim(0,nbins)
+
+    # Make successive Gaussian parameter guesses based on single-Gaussian fitting
+    best_guess = []
+    profile_resid = profile_centre.copy()
+    for i_gauss in np.arange(ngauss):
+        prof_mean = np.mean(profile_resid)
+        A_guess = np.max(profile_resid) - prof_mean
+        mu_guess = bins[np.argmax(profile_resid)]
+        sig_guess = np.abs((bins[np.argmax(profile_resid)]-bins[np.argmin(np.abs(0.5*A_guess + prof_mean - profile_resid))]))/np.sqrt(2.0*np.log(2))
+        base_guess = prof_mean
+        guess = [A_guess, mu_guess, sig_guess, base_guess]
+        #A, mu, sig, base = fitgauss(bins, profile_resid, yerr=np.sqrt(profile_centre), p0=guess)
+        if (sig_guess > 0.): 
+            best_guess.append(A_guess)
+            best_guess.append(mu_guess)
+            best_guess.append(sig_guess)
+            if(verbose):
+                print 'A, mu, sig, base (guesses): ', A_guess, mu_guess, sig_guess, base_guess 
+                print 'A, mu, sig, base (fit):     ', A, mu, sig, base
+        profile_resid -= gaussian(bins, A_guess, mu_guess, sig_guess, base_guess)
+
+    base_guess = np.mean(profile_centre)
+    best_guess.append(base_guess)
+    if(verbose):
+        print 'best_guess = ', best_guess
+
+    # Now do proper fit with ngauss Gaussian components, now that I have the best automated guess vector
+    A_fit, mu_fit, sig_fit, base_fit = fitgauss_multi(bins, profile_centre, yerr=np.sqrt(profile_centre), p0=best_guess)
+
+    if(versbose):
+        print 'Fit parameters:'
+        print ''
+        print '    A: ', A_fit
+        print '   mu: ', mu_fit
+        print '  sig: ', sig_fit
+        print ' base: ', base_fit
+
+    # Roll back the fit profile model
+    mu_fit -= n_roll_bins
+
+    n_fit_fac=10
+    x_fit = np.linspace(0, nbins-1, n_fit_fac*nbins)#, endpoint=False)
+    prof_fit = gaussian_multi(x_fit, A_fit, mu_fit, sig_fit, base_fit)
+
+    return prof_fit
 
 
 

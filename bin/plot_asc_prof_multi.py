@@ -106,7 +106,7 @@ def main():
 # meaningThe following means that the 2nd argument is the 
 # desired output plot file name
      # plot_file = 'multi_profile.png'
-     plot_file = 'multi_profile.eps'
+     plot_file = 'multi_profile.png'
 
 #    plt.show()
      plt.savefig(plot_file)
