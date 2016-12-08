@@ -54,25 +54,34 @@ def gaussian_multi_func(x, *params):
 def straightline(x, m, b):
     return m*x + b
 
-def exponential(x, x0, y0, A, tau):
-    y = y0 + A*(1.0 - np.exp(-(x-x0)/tau))
+def exponential(x, x0, A, tau):
+    y =  A*(1.0 - np.exp(-(x-x0)/tau))
     return y
 
 # Sum of exponentials. A, tau are arrays of the same size
-def exponentialn(x, x0, y0, A, tau):
+###def exponentialn(x, x0, y0, A, tau):
+def exponentialn(x, x0, A, tau):
     
-    n_exp = len(A)
-    if(len(tau) != n_exp):
+    if(type(A) is list or type(A) is np.ndarray):
+        n_exp = np.size(A)
+    else: # likely a scalar in this case
+        n_exp = 1
+        
+    if(np.size(tau) != n_exp):
         print 'A and tau must be of same array length'
         exit()
+
+    if(n_exp==1):
+        A = np.asarray([A])
+        tau = np.asarray([tau])
        
     y = 0.
     for i_exp in np.arange(n_exp):
         y = y + A[i_exp]*(1.0 - np.exp(-(x-x0)/tau[i_exp]))
 
-    ymod = y + y0
+#    ymod = y + y0
             
-    return ymod
+    return y
     
     
 # Perform a fit of an x-y data set to a gaussian profile.
