@@ -5,6 +5,7 @@ from astropy import units as u
 from astropy import constants as cst
 from astropy import coordinates as coord
 from scipy.optimize import newton
+import swiftmonitor.utils as smu
 
 #c_light = 299792458.
 tsun_us = 4.925490947  # solar constant in microsecs
@@ -380,5 +381,50 @@ def bin_data(x, y, yerr=None, binsize=None, weigh_x=False, even_bins=False):
 def testfunc(x):
     f = x**2.0 - 9.0
     return f
+
+# Given two neighbouring par files and an epoch in MJD (e.g. glitch epoch), 
+# calculate the delta_nu (nuder=0) or delta_nudot (nuder=1) at the glitch epoch.
+def fit_delta_nu(par1, par2, mjd, mjd_error=0, nuder=0):
+    pars1 = smu.read_parfile(par1)
+    pars2 = smu.read_parfile(par2)
+    midt1 = pars1['TZRMJD'].value 
+    midt2 = pars2['TZRMJD'].value 
+#    ferr1 = np.ones_like(mjd)*pars1['F' + str(nuder)].error
+#    ferr2 = np.ones_like(mjd)*pars2['F' + str(nuder)].error
+#    for i in range(nuder+1, 12):
+#        fdot_name = 'F' + str(i)
+#        if fdot_name in pars1.keys() and  pars1[fdot_name].value != 0.0:
+            #ferr1 = np.sqrt( ferr1**2 + ((pars1[fdot_name].error)*((mjd-midt1)*3600.*24)**(i-nuder))**2) 
+#    ferr1 = np.ones_like(mjd)*pars1['F' + str(nuder)].error
+#    ferr2 = np.ones_like(mjd)*pars2['F' + str(nuder)].error
+    ferr1 = pars1['F' + str(nuder)].error
+    ferr2 = pars2['F' + str(nuder)].error
+    ferrs1 = np.zeros(12) #, len(mjd)))
+    ferrs2 = np.zeros(12) #, len(mjd)))
+    ferr_t1 = 0.0
+    ferr_t2 = 0.0
+    for i in range(nuder, 12):
+        fdot_name = 'F' + str(i)
+        if fdot_name in pars1.keys() and  pars1[fdot_name].value != 0.0:
+            ferrs1[i] = (pars1[fdot_name].error)*((mjd-midt1)*3600.*24)**(i-nuder)
+            ferr_t1 = ferr_t1 + i*pars1[fdot_name].value*((mjd-midt1)**(i-nuder))
+        if fdot_name in pars2.keys() and  pars2[fdot_name].value != 0.0:
+            ferrs2[i] = (pars2[fdot_name].error)*((mjd-midt2)*3600.*24)**(i-nuder)
+            ferr_t2 = ferr_t2 + i*pars2[fdot_name].value*((mjd-midt2)**(i-nuder))
+        # include error on mjd if given
+    ferr1 = np.sqrt((ferrs1**2).sum(0) + (mjd_error*ferr_t1)**2) 
+    ferr2 = np.sqrt((ferrs2**2).sum(0) + (mjd_error*ferr_t2)**2) 
+#        if fdot_name in pars2.keys() and  pars2[fdot_name].value != 0.0:
+#            ferr2 = np.sqrt( ferr2**2 + ((pars2[fdot_name].error)*((mjd-midt2)*3600.*24)**(i-nuder))**2) 
+            
+    f1 = smu.times2freqs(mjd, par1, nuder)
+    f2 = smu.times2freqs(mjd, par2, nuder)
+    
+    deltaf = f2-f1
+    deltaf_err = np.sqrt(ferr1**2.0 + ferr2**2.0)
+    
+    deltaf_over_f = deltaf/f1
+    
+    return deltaf, deltaf_err, deltaf_over_f
 
     
