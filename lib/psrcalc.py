@@ -481,4 +481,3 @@ def fit_delta_nu(par1, par2, mjd, mjd_error=0, nuder=0):
     
     return deltaf, deltaf_err, deltaf_over_f, delta_f_over_f_err
 
-    
