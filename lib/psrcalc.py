@@ -384,7 +384,7 @@ def testfunc(x):
 
 # Given two neighbouring par files and an epoch in MJD (e.g. glitch epoch), 
 # calculate the delta_nu (nuder=0) or delta_nudot (nuder=1) at the glitch epoch.
-def fit_delta_nu(par1, par2, mjd, mjd_error=0, nuder=0):
+def fit_delta_nu_OLD(par1, par2, mjd, mjd_error=0, nuder=0):
     pars1 = smu.read_parfile(par1)
     pars2 = smu.read_parfile(par2)
     midt1 = pars1['TZRMJD'].value 
@@ -397,28 +397,35 @@ def fit_delta_nu(par1, par2, mjd, mjd_error=0, nuder=0):
             #ferr1 = np.sqrt( ferr1**2 + ((pars1[fdot_name].error)*((mjd-midt1)*3600.*24)**(i-nuder))**2) 
 #    ferr1 = np.ones_like(mjd)*pars1['F' + str(nuder)].error
 #    ferr2 = np.ones_like(mjd)*pars2['F' + str(nuder)].error
-    ferr1 = pars1['F' + str(nuder)].error
-    ferr2 = pars2['F' + str(nuder)].error
+#    ferr1 = pars1['F' + str(nuder)].error
+#    ferr2 = pars2['F' + str(nuder)].error
     ferrs1 = np.zeros(12) #, len(mjd)))
     ferrs2 = np.zeros(12) #, len(mjd)))
     ferr_t1 = 0.0
     ferr_t2 = 0.0
     for i in range(nuder, 12):
         fdot_name = 'F' + str(i)
-        if fdot_name in pars1.keys() and  pars1[fdot_name].value != 0.0:
-            ferrs1[i] = (pars1[fdot_name].error)*((mjd-midt1)*3600.*24)**(i-nuder)
-            ferr_t1 = ferr_t1 + i*pars1[fdot_name].value*((mjd-midt1)**(i-nuder))
+        if fdot_name in pars1.keys() and pars1[fdot_name].value != 0.0:
+            ferrs1[i] = (pars1[fdot_name].error)*(((mjd-midt1)*3600.*24)**(i-nuder))
+            if(i>nuder):
+                ferr_t1 = ferr_t1 + (i-nuder)*pars1[fdot_name].value*(((mjd-midt1)*3600.*24)**(i-nuder-1))
         if fdot_name in pars2.keys() and  pars2[fdot_name].value != 0.0:
-            ferrs2[i] = (pars2[fdot_name].error)*((mjd-midt2)*3600.*24)**(i-nuder)
-            ferr_t2 = ferr_t2 + i*pars2[fdot_name].value*((mjd-midt2)**(i-nuder))
+            ferrs2[i] = (pars2[fdot_name].error)*(((mjd-midt2)*3600.*24)**(i-nuder))
+            if(i>nuder):
+                ferr_t2 = ferr_t2 + (i-nuder)*pars2[fdot_name].value*(((mjd-midt2)*3600.*24)**(i-nuder-1))
         # include error on mjd if given
-    ferr1 = np.sqrt((ferrs1**2).sum(0) + (mjd_error*ferr_t1)**2) 
-    ferr2 = np.sqrt((ferrs2**2).sum(0) + (mjd_error*ferr_t2)**2) 
-#        if fdot_name in pars2.keys() and  pars2[fdot_name].value != 0.0:
-#            ferr2 = np.sqrt( ferr2**2 + ((pars2[fdot_name].error)*((mjd-midt2)*3600.*24)**(i-nuder))**2) 
+    ferr1 = np.sqrt((ferrs1**2).sum(0) + ((mjd_error*3600.*24*ferr_t1)**2)) 
+    ferr2 = np.sqrt((ferrs2**2).sum(0) + ((mjd_error*3600.*24*ferr_t2)**2)) 
+#    print 'ferrs1, ferrs2 = ', (ferrs1**2).sum(0) , (ferrs2**2).sum(0)
+#    print 'ferr_t1, feerr_t2 = ', ((mjd_error*3600.*24*ferr_t1)**2), ((mjd_error*3600.*24*ferr_t2)**2)
+#    print 'ferr1, ferr2 = ', ferr1, ferr2
+##        if fdot_name in pars2.keys() and  pars2[fdot_name].value != 0.0:
+##            ferr2 = np.sqrt( ferr2**2 + ((pars2[fdot_name].error)*((mjd-midt2)*3600.*24)**(i-nuder))**2) 
             
     f1 = smu.times2freqs(mjd, par1, nuder)
     f2 = smu.times2freqs(mjd, par2, nuder)
+    
+    
     
     deltaf = f2-f1
     deltaf_err = np.sqrt(ferr1**2.0 + ferr2**2.0)
@@ -426,5 +433,52 @@ def fit_delta_nu(par1, par2, mjd, mjd_error=0, nuder=0):
     deltaf_over_f = deltaf/f1
     
     return deltaf, deltaf_err, deltaf_over_f
+
+
+
+
+def calc_nu_err_at_epoch(par, mjd, mjd_off=0., nuder = 0):
+    
+    pars = smu.read_parfile(par)
+    # t = np.linspace(pars['START].value, pars['FINISH'].value, 100)
+    midt = pars['TZRMJD'].value 
+    # nuderr = 0
+    freqs = np.zeros(0)
+    ferrs = np.zeros(0)
+#    freqs = 0.
+#    ferrs = 0.
+    for i in range(nuder, 12):
+        fdot_name = 'F' + str(i)
+        if fdot_name in pars.keys() and  pars[fdot_name].value != 0.0:
+            freqs = np.append(freqs, pars[fdot_name].value)
+            ferrs = np.append(ferrs, pars[fdot_name].error)
+    fs = smu.calc_freq(mjd, pars['PEPOCH'].value, *freqs)
+    f_err = smu.calc_freq(mjd_off,  0, *ferrs)
+#    f_err = smu.calc_freq(mjd, midt, *ferrs)
+#    f_err +=  smu.calc_freq(mjd + mjd_off, midt, *freqs)-smu.calc_freq(mjd, midt, *freqs) 
+    return f_err
+#    plt.plot(t, fs)
+#    plt.fill_between(t, fs-f_errs, fs+f_errs, alpha=0.5, color='k')
+    
+def fit_delta_nu(par1, par2, mjd, mjd_error=0, nuder=0):
+    pars1 = smu.read_parfile(par1)
+    pars2 = smu.read_parfile(par2)
+    midt1 = pars1['TZRMJD'].value 
+    midt2 = pars2['TZRMJD'].value 
+            
+    f1 = smu.times2freqs(mjd, par1, nuder)
+    f2 = smu.times2freqs(mjd, par2, nuder)
+    
+    ferr1 = calc_nu_err_at_epoch(par1, mjd, mjd_off=mjd_error, nuder=nuder)
+    ferr2 = calc_nu_err_at_epoch(par2, mjd, mjd_off=mjd_error, nuder=nuder)
+    
+    
+    deltaf = f2-f1
+    deltaf_err = np.sqrt(ferr1**2.0 + ferr2**2.0)
+    
+    deltaf_over_f = deltaf/f1
+    delta_f_over_f_err = deltaf_over_f*np.sqrt((deltaf_err/deltaf)**2 + (ferr1/f1)**2)
+    
+    return deltaf, deltaf_err, deltaf_over_f, delta_f_over_f_err
 
     
