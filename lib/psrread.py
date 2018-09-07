@@ -4,7 +4,7 @@ from sys import argv, exit
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from psrcalc import rad_to_cos_phi
+#from psrcalc import rad_to_cos_phi
 
 
 duty_file='/Users/ferdman/Work/pulsar/data_tables/duty_lookup_table.dat'
@@ -68,6 +68,24 @@ def get_duty(psr_name):
      return duty
 
 
+# Simple routine that converts an angle in radians to cos(phi), where phi is the half
+# angle.  For use mainly with width calculation and modelling routines.
+##### Assume phi is already half the width angle #####
+def rad_to_cos_phi(phi, phi_err):
+#    phi = angle 
+#    phi_err = angle_err
+    cos_phi = np.cos(phi)
+    # Simple error method: average the diff between max/min of cos and cos itself.
+    cos_max = np.cos(phi + phi_err)
+    cos_min = np.cos(phi - phi_err)
+    
+    cos_phi_err = np.zeros_like(cos_phi)
+    for i_cos in np.arange(len(cos_phi_err)):
+        cos_phi_err[i_cos] = np.mean([np.abs(cos_max[i_cos] - cos_phi[i_cos]), 
+                                    np.abs(cos_min[i_cos] - cos_phi[i_cos])])
+    
+    return cos_phi, cos_phi_err
+    
 
 # Routine to read print_resids-format ascii residual data file.  returns a 
 # dictionary that contains mjd, res, res_err, and freq
@@ -501,7 +519,7 @@ def read_par(par_file, file_format='tempo1', return_tuple=False, verbose=False):
 #    def __init__(self, par_file, file_format='tempo1'):
 
     maxf=16 # maximum number of frequency derivatives
-    maxdm=8 # maximum number of dm derivatives
+    maxdm=12 # maximum number of dm derivatives
 
 # Check that input file_format is either tempo1 or tempo2
 # can be given as:
@@ -562,14 +580,14 @@ def read_par(par_file, file_format='tempo1', return_tuple=False, verbose=False):
                        'nits', 'binary', 'pb', 'ecc', 'om', 't0', 'a1', \
                        'tasc', 'eps1', 'eps2', 'omdot', 'pbdot', 'gamma', \
                        'm2', 'sini', 'shapmax', 'posepoch', 'dmepoch', 'ephver', \
-                       'glep', 'glph', 'glf0', 'glf1', 'units', 'mode']
+                       'glep', 'glph', 'glf0', 'glf1', 'units', 'mode', 'fd1']
     param_type = ['s',   's',    's',   's',    'f',    'f',     'f',  'f', \
                        'f',      'f',     'f',      'f',  's',    's', \
                        'd',    'f',    'f',      'f',      's',  \
                        'd',    's',      'f',  'f',   'f',  'f',  'f', \
                        'f',    'f',    'f',    'f',     'f',     'f', \
                        'f',   'f',   'f',        'f',         'f',       'd', \
-                       'f',    'f',    'f',    'f',    's',     'd']
+                       'f',    'f',    'f',    'f',    's',     'd',  'f']
     f_val = [0.0 for i in range(maxf)] # max 15 f derivatives
     f_err = [-1.0 for i in range(maxf)] # max 15 f derivatives
     f_fit = [False for i in range(maxf)] # max 15 f derivatives
@@ -702,9 +720,9 @@ def read_par(par_file, file_format='tempo1', return_tuple=False, verbose=False):
 #    params = dict(temp_params)
     params = dict(zip(param_name, param_val))
 #    params = dict(zip(param_name, param_val, param_err, param_fit))
-##    print "List of parameters in file "+par_file+":\n"
-##    for p, v in params.iteritems():
-##        print p, v
+    print "List of parameters in file "+par_file+":\n"
+    for p, v in params.iteritems():
+        print p, v
 
 # Do comparison to expected fields in par file.  Map read-in parameter naems to 
 # param names as we want them to be stored (If only have jname or bname, not

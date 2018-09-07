@@ -69,7 +69,7 @@ def exponentialn(x, x0, A, tau):
         
     if(np.size(tau) != n_exp):
         print 'A and tau must be of same array length'
-        exit()
+        sys.exit()
 
     if(n_exp==1):
         A = np.asarray([A])

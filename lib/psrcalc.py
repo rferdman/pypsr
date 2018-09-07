@@ -6,6 +6,8 @@ from astropy import constants as cst
 from astropy import coordinates as coord
 from scipy.optimize import newton
 import swiftmonitor.utils as smu
+from psrread import read_par
+
 
 #c_light = 299792458.
 tsun_us = 4.925490947  # solar constant in microsecs
@@ -33,7 +35,24 @@ def get_pkparams(ma=None, mb=None, ecc=None, pb=None, x=None):
     
     return pk
     
-    
+
+def get_mass_func(parfile, tempo_ver='tempo1'):
+    # read in pb and asini from par file, adn calculation mass function:
+#    if(tempo_ver='tempo2'):
+#        tempo_ver = 'tempo2'
+    params=read_par(parfile, file_format=tempo_ver)
+    # asini is in (light) seconds.  Convert pb to secs as well.
+    # tsun is in us to give f_mass in solar units.
+    tsun = 4.925490947
+    tsun_secs = tsun*10**(-6)
+    pb_secs = float(params['pb'])*86400.0
+    f_mass = 4*np.pi*np.pi*(float(params['a1'])**3.)/(tsun_secs*(pb_secs**2.))
+#    f_mass = 4*np.pi*np.pi*(float(params['a1'])**3.)/(tsun*(float(params['pb'])**2.))
+    print 'pb = ', float(params['pb']), ' = ', pb_secs, ' sec'
+    print 'a1 = ', float(params['a1'])
+    print 'fmass = ', f_mass
+    return f_mass
+
     
 
 def get_prec_period(ma=None, mb=None, ecc=None, pb=None, units='years'):
@@ -65,24 +84,6 @@ def get_prec_period(ma=None, mb=None, ecc=None, pb=None, units='years'):
     
     return prec_period
 
-# Simple routine that converts an angle in radians to cos(phi), where phi is the half
-# angle.  For use mainly with width calculation and modelling routines.
-##### Assume phi is already half the width angle #####
-def rad_to_cos_phi(phi, phi_err):
-#    phi = angle 
-#    phi_err = angle_err
-    cos_phi = np.cos(phi)
-    # Simple error method: average the diff between max/min of cos and cos itself.
-    cos_max = np.cos(phi + phi_err)
-    cos_min = np.cos(phi - phi_err)
-    
-    cos_phi_err = np.zeros_like(cos_phi)
-    for i_cos in np.arange(len(cos_phi_err)):
-        cos_phi_err[i_cos] = np.mean([np.abs(cos_max[i_cos] - cos_phi[i_cos]), 
-                                    np.abs(cos_min[i_cos] - cos_phi[i_cos])])
-    
-    return cos_phi, cos_phi_err
-    
     
 def get_pbdot_gal(l, b, d, derr=None, v0=220.0, v0err=None, R0=7.7, R0err=None, 
                 verbose=False):
@@ -480,4 +481,3 @@ def fit_delta_nu(par1, par2, mjd, mjd_error=0, nuder=0):
     delta_f_over_f_err = deltaf_over_f*np.sqrt((deltaf_err/deltaf)**2 + (ferr1/f1)**2)
     
     return deltaf, deltaf_err, deltaf_over_f, delta_f_over_f_err
-

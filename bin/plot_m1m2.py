@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/local/bin/python2
 
 # Reads in residuals from ascii file ("print_resids" format for now), and
 # plots them 
@@ -17,7 +17,7 @@ def get_opt(progname):
      parser.add_argument('m1m2file', 
                          nargs='?',
                          default='m1m2.dat',
-                         help='input residual data file')
+                         help='input m1m2 data file')
      parser.add_argument('--m1gr',
                          type=float,
                          nargs=1,
@@ -52,6 +52,14 @@ def get_opt(progname):
                          type=float,
                          default=None,
                          help='Label post-Keplerian parameters on plot at these coordinates (given is same order as --pkparams argument)')
+     parser.add_argument('--plot_sin1',
+                         action='store_true',
+                         default=False,
+                         help='Plot area restricted by sin(i)<=1 condition')
+     parser.add_argument('--parfile', 
+                         nargs='?',
+                         default=None,
+                         help='input pulsar ephemeris file, needed for plotting sin(i) restriction')
      parser.add_argument('--xlim',
                          nargs=2,
                          type=float,
@@ -110,6 +118,12 @@ def get_opt(progname):
                     print 'WARNING: No error to m2gr has been provided.'
                else: 
                     args.m2gr_err = args.m2gr_err[0]
+                
+     if(args.plot_sin1):
+          if(args.parfile==None):
+              print 'Plotting sin(i) restricted region requires a par file.'
+              exit()
+          
 
      # xlim in correct order
      if(args.xlim):
@@ -148,6 +162,7 @@ def main():
                m2gr=args.m2gr, m2gr_err=args.m2gr_err, 
                m1m2_contour=args.m1m2_contour_file,
                plot_inset=args.inset, xlim=args.xlim, ylim=args.ylim,
+               plot_sin1=args.plot_sin1, parfile=args.parfile,
                pk_label_coord=args.pkcoords)
 
      if(args.outfile):

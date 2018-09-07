@@ -7,7 +7,7 @@ import matplotlib.cm as cm
 from matplotlib.ticker import FormatStrFormatter
 from datetime import date, datetime, timedelta
 import mjd
-from psrcalc import bin_data
+from psrcalc import bin_data, get_mass_func
 from pdfplot import get_prob_2D_levels
 
 
@@ -783,6 +783,7 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
               m1gr_err=None, m2gr_err=None,
               m1m2_contour=None,
               pk_label_coord=None,
+              plot_sin1=False, parfile=None, tempo_version='tempo1',
               xlim=None, ylim=None, plot_inset=False,
               colour=None, line_style=None, m1m2_pbdot_uncorr=None):
 
@@ -877,8 +878,6 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
      #         else:
          z_val = p_out['norm_like']
      
-
-
 # Now start plotting, in order given by command-line choices of PK parameters:
      fig = plt.figure(figsize=(11,8.5))
      ax = fig.add_axes([0.12, 0.1, 0.8, 0.85])
@@ -893,7 +892,6 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
                ax.plot(m1_pbdot_uncorr, m2_pbdot_uncorr['pbdot_uncorr'][:,i_lim], 
                        linestyle='dashed', color=clr[plot_pk.index('pbdot')])
          
-
 
 # Get overall (x,y) ranges for plot.  Needed only if xlim and ylim are not 
 # provided:
@@ -912,6 +910,21 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
           ylim = (max([m2_min, m2gr - m2gr_err - 200.*m2gr_err]), 
                   min([m2_max, m2gr + m2gr_err + 200.*m2gr_err]))
          
+# Calculate curve representing sini = 1:
+     if(plot_sin1):
+         if (parfile==None):
+             print 'Require par file to calculate mass function.'
+             print 'Will proceed without plotting sin(i) restriction.'
+         else:
+             f_mass = get_mass_func(parfile, tempo_ver=tempo_version)
+             m2_sin1 = np.linspace(ylim[0], ylim[1], num=128)
+             m1_sin1 = ((m2_sin1**3.0)/(f_mass**2.0)) - m2_sin1
+
+# Now plot area forbidden by sini>1, if requested:
+             ax.plot(m1_sin1, m2_sin1, linestyle='dashed', color='black')
+         # Fill in below these values
+
+
 
      ax.set_xlim(xlim)
      ax.set_ylim(ylim)
