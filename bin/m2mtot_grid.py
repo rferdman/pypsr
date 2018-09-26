@@ -1,6 +1,6 @@
 #!/usr/local/bin/python
 
-# Running tempo over a grid of cosi and m2 values to eventually plot probability
+# Running tempo over a grid of m2 and mtot values to eventually plot probability
 # contours.
 
 import sys
@@ -82,7 +82,7 @@ def get_opt(progname):
                         default=None,
                         help='Vales of pulsar mass in solar units to draw over contour plot')
     parser.add_argument('--m1bins',
-                        type=float,
+                        type=int,
                         default=16,
                         help='Number of histogram bins for m1')
     parser.add_argument('--plotformat',
@@ -166,7 +166,7 @@ def main():
     #par_base_contents = [par_line.split() for par_line in f_par.readlines()]
     f_par.close()
 
-    parfile_base = 'par_base.par'
+    parfile_base = 'par_base_m2mtot.par'
     f_par_base = open(parfile_base, 'w')
     for par_line in par_base_contents:                
         f_par_base.write(' '.join(par_line)+'\n')
@@ -213,7 +213,7 @@ def main():
             x_text = y_text - args.m1curve[i_m1] - 0.005*abs(args.m2lim[1] - args.m2lim[0])
             text_str = '$\\mathsf{m_p} = $ '+str(args.m1curve[i_m1])+' M$_\\odot$'
             plt.text(x_text, y_text, text_str, 
-                            fontsize=16, \
+                            fontsize=12, \
                             horizontalalignment='right', \
                             verticalalignment='top',
                             rotation=88)

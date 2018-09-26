@@ -348,21 +348,3 @@ def grid_fit_m2mtot_tempo(parfile_base, timfile,
              'm1_prob':m1_prob}
 
     return p_out
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

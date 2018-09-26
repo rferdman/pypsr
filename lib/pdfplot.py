@@ -211,7 +211,7 @@ def plot_pdf(x_val, pdf_data, canvassize=None, xticks=True, yticks=True, \
 
 
 # plot vertical lines if asked for by user.  Choose colour or linestyles:
-    if(prob_lines != None):
+    if(prob_lines is not None):
         plt.vlines(prob_lines, np.min(pdf_data)-0.5, np.max(pdf_data)+0.5, \
                       color=prob_linecolour, linestyle=prob_linestyle)
 
@@ -308,7 +308,7 @@ def plot_contour_pdf(x_val, y_val, contour_data, n_steps=32,\
     
 # Set up the plot:
     fig = plt.figure(figsize=canvassize)
-    ax = fig.add_axes([0.21, 0.14, 0.75, 0.81])
+    ax = fig.add_axes([0.23, 0.19, 0.73, 0.76])
     ax.xaxis.set_tick_params(labelsize=ticklabelsize, pad=8)
     ax.yaxis.set_tick_params(labelsize=ticklabelsize, pad=8)
     ax.ticklabel_format(axis='x', useOffset=False)
@@ -344,11 +344,12 @@ def plot_contour_pdf(x_val, y_val, contour_data, n_steps=32,\
         ax.xaxis.grid(linestyle='--', color='black', \
                           linewidth=0.4)          
 
-    prob_intervals = [0.683, 0.954, 0.9973]
+    prob_intervals = np.array([0.683, 0.954, 0.9973])
 
 # Create levels at which to plot contours at each of the above intervals.  
 # Will not assume going in that Z values are normalized to total volume of 1. 
     contour_level = get_prob_2D_levels(contour_data, prob_intervals, n_steps=n_steps)
+    print "CONTOUR_LEVEL = ", contour_level
 
     if (norm==True):
         z_val = (contour_data*weights)/np.sum(contour_data*weights)
@@ -356,7 +357,7 @@ def plot_contour_pdf(x_val, y_val, contour_data, n_steps=32,\
         z_val = contour_data
 
 # Now plot the pdf data
-    ax.contour(x_val, y_val, z_val, levels=contour_level, \
+    ax.contour(x_val, y_val, z_val, levels=np.flip(contour_level, axis=0), \
                    colors=('red', 'blue', 'green'))
 
     if(figtext!=None):
@@ -364,5 +365,3 @@ def plot_contour_pdf(x_val, y_val, contour_data, n_steps=32,\
             ax.text(txt[0], txt[1], txt[2], fontsize=figtextsize, \
                         horizontalalignment='center', \
                         verticalalignment='center',)
-
-

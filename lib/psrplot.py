@@ -866,13 +866,14 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
          m1_contour_data = p_out['mtot']-p_out['m2']
     #     m1lim = (args.mtotlim[0] - args.m2lim[0], args.mtotlim[1] - args.m2lim[1])
     
-         prob_intervals = [0.683, 0.954]
+         prob_intervals = [0.683, 0.954, 0.9973]
+#         prob_intervals = [0.683, 0.954]
          weights=1.0
      
      # x_val = m1_contour_data, y_val = p_out['m2'], p_out['norm_like']
           # Create levels at which to plot contours at each of the above intervals.  
           # Will not assume going in that Z values are normalized to total volume of 1. 
-         contour_level = get_prob_2D_levels(p_out['norm_like'], prob_intervals)
+         contour_level = np.flip(get_prob_2D_levels(p_out['norm_like'], prob_intervals), axis=0)
      #         if (norm==True):
      #             z_val = (contour_data*weights)/np.sum(contour_data*weights)
      #         else:
@@ -949,10 +950,10 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
      # Now plot the pdf data
      # Need to redo with regiular contour to get a line bordering it...
           ax.contour(m1_contour_data, p_out['m2'], z_val, levels=contour_level, 
-                        colors=('0.0','none'), linewidths=[0.6, 0.0])
+                        colors=('0.0','0.0', '0.0'), linewidths=[0.6, 0.6, 0.6])
      # Need to do with contourf so that it gets filled
-          ax.contourf(m1_contour_data, p_out['m2'], z_val, levels=contour_level, 
-                        colors=('0.35','none'))
+          #ax.contourf(m1_contour_data, p_out['m2'], z_val, levels=contour_level, 
+        #                colors=('0.35','none'))
                       
                         
                         
@@ -992,10 +993,10 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
           if(m1m2_contour!=None):
          # Need to redo with regiular contour to get a line bordering it...
               ax_inset.contour(m1_contour_data, p_out['m2'], z_val, levels=contour_level, 
-                            colors=('0.0','none'), linewidths=[1.5, 0.0])
+                            colors=('0.0','0.0', '0.0'), linewidths=[1.5, 1.5, 1.5])
          # Need to do with contourf so that it gets filled
-              ax_inset.contourf(m1_contour_data, p_out['m2'], z_val, levels=contour_level, 
-                            colors=('0.6','none'))
+              #ax_inset.contourf(m1_contour_data, p_out['m2'], z_val, levels=contour_level, 
+                #            colors=('0.6','none'))
                       
           else:
               # Plot GR-derived masses, if given:
