@@ -348,3 +348,154 @@ def grid_fit_m2mtot_tempo(parfile_base, timfile,
              'm1_prob':m1_prob}
 
     return p_out
+    
+    
+    
+    
+
+# Main fitting routine.  Outside wrapper will pass all the necessary input parameters.  Here, MTOT is calculated from m1 and m2.
+def grid_fit_m1m2_tempo(parfile_base, timfile, 
+                          m2_range=[1.15, 1.45], m1_range=[2.56, 2.58],
+                          n_m2=64, n_m1=64, tempo2=False):
+
+# Expand input parmeter dictionary:
+
+# Now get arrays of grid steps for loops, and for later plotting.
+# Shift each array of samples by half the step size.  This will avoid having 
+# zero values, which when run through the function, can give divisions by zero.
+# Also: sample in parts, based on the setup file parameters, usually used to 
+# sample the "important" parts of each parameter space:
+    m2, m2_step = \
+        np.linspace(m2_range[0], m2_range[1], n_m2, endpoint=False, retstep=True) 
+    m2 = m2 + m2_step/2.
+
+    m1, m1_step = \
+        np.linspace(m1_range[0], m1_range[1], n_m1, endpoint=False, retstep=True) 
+    m1 = m1 + m1_step/2.
+    
+    #mtot = m1 + m2
+    #n_mtot = n_m1
+    #print 'MTOT limits: ', np.min(mtot), ' --> ', np.max(mtot)
+
+
+# Set up 2-d array of ones to use for inputting resulting chi2's for each fit
+    n_dims = (n_m1, n_m2)
+    print 'n_m1, n_m2 = (', n_m1, n_m2, ')'
+
+    n_iter = n_m1*n_m2
+
+# Now run grid.  Opting not to run a list comprehension-type thing, for clarity.
+    
+# Header for standard output:
+    sys.stdout.write('\n {0:<15s}  {1:>7s}  {2:>8s}  {3:>10s}   {4:>14s}  {5:>14s}\n'.format("Iter", "m1", "m2", "mtot", "Chi2", "Red. Chi2"))
+
+# Just to be paranoid, reset chi2 array
+    chi2    = np.ones(n_dims, dtype=float)
+    redchi2 = np.ones(n_dims, dtype=float)
+#    m1      = np.ones(n_dims, dtype=float)
+    #        weight  = np.ones(n_dims, dtype=float)
+    
+    # First, read in par file:
+#    par_base_contents = []
+#    f_par_base = open(parfile_base, 'r')
+##    for par_line in f_par_base.readlines():
+ #       if ((par_line.split()[0] != 'MTOT') & (par_line.split()[0]!='M2')):
+ #           par_base_contents.append(par_line.split())
+   #   f_par_base.close()
+
+# Read in base par file:
+    f_par_base = open(parfile_base, 'r')
+    par_base_contents = f_par_base.read()  # no arguments, so read entire file
+    f_par_base.close()
+    
+# Set name for temporary par file on which to run tempo:
+    parfile_temp = 'par_temp.par'
+
+# create array of corresponding mtot values:
+    mtot = np.zeros(n_iter, dtype=float)
+    mtot_chi2 = np.zeros(n_iter, dtype=float)
+
+# alpha and delta each will run from 0. to pi:
+    for i_m1 in np.arange(n_m1):
+        
+        for i_m2 in np.arange(n_m2):     
+       
+            # Add the M2 and MTOT lines to the base par file to create a temporary
+            # par file to be fed to tempo:
+            f_par = open(parfile_temp, 'w')
+            f_par.write(par_base_contents)
+            f_par.write('M2    {0}  0\n'.format(m2[i_m2]))
+            f_par.write('MTOT    {0}  0\n'.format(m1[i_m1] + m2[i_m2]))
+            f_par.close()
+
+            # Run tempo, get chi squared:            
+            chi2_cur, redchi2_cur = tempo_chi2(parfile_temp, timfile, 
+                tempo2=tempo2)
+            chi2[i_m1, i_m2] = chi2_cur
+            redchi2[i_m1, i_m2] = redchi2_cur
+#####
+# print to screen every 8 iterations of m2 (= 128*128*8)
+#                  if (np.fmod(i_alpha, 4)==0. and i_delta==0 and i_T1==0):
+            
+            # Print a status every 32 iterations
+#########                #    chi2 = chisq(func_rl, mjd, y, popt, sigma=y_err)
+            i_iter = i_m1*n_m2 + i_m2
+            # Calculate m1:
+            mtot[i_iter] = m1[i_m1] + m2[i_m2]
+            mtot_chi2[i_iter] = chi2_cur
+
+#            if(np.fmod(iteration, 64)==0):
+            restart_line()
+            sys.stdout.write('{0:<10d}[{1:>3d}%]  {2:8.4f}  {3:8.4f}  {4:8.4f}   {5:14.5g}  {6:14.5g}'.format(
+                    i_iter, int(100*float(i_iter)/float(n_iter)), 
+                    m1[i_iter], m2[i_m2], mtot[i_mtot],  
+                    chi2_cur, redchi2_cur))
+            sys.stdout.flush()
+                        
+#                        print "Iter ", i_alpha * n_delta * n_T1
+#                        print "Chisq = ", fit.chisqr
+#                        print "Reduced Chisq = ", fit.redchi
+#                        print 'Best-Fit Values:'
+#                        for name, par in params.items():
+#                            if (name=='T1'):
+#                                print '  %s = %.4f +/- %.4f ' % (name, par.value, par.stderr)
+#                            else:
+#                                print '  %s = %.4f +/- %.4f ' % (name, par.value*180./np.pi, par.stderr*180./np.pi)
+
+
+# Now have grid done.  Will need to now:
+#     (1) Convert chi2 grid to an exp(-(chi2 - chi2_min)) grid.  Normalize to make
+#         sum(3-d grid values) = 1
+
+# Find minimum chi2 value:
+    chi2_min = np.amin(chi2)
+    redchi2_min = np.amin(redchi2)
+
+    print " "
+    print "Min chisq = ", chi2_min
+    print "Min reduced chisq = ", redchi2_min
+    indices = np.where(chi2 == chi2_min)
+    print "indices = ", indices
+    print "min_m1 = ", m1[indices[0]]
+    print "min_m2 = ", m2[indices[1]]
+    min_mtot_ind = np.where(mtot_chi2 == chi2_min)
+    print "min_mtot    = ", mtot[min_mtot_ind]
+
+    likelihood = np.exp(-(chi2 - chi2_min)/2.0)
+
+    norm_like = likelihood/np.sum(likelihood)  # because not varying bin sizes
+ 
+    mtot_prob = np.exp(-(mtot_chi2 - chi2_min)/2.0)/np.sum(likelihood)
+ 
+#    print "Number of elements in likelihood array = ", np.size(likelihood)
+#    print "Sum of normalized array = ", np.sum(norm_like)
+
+
+# Make up output dictionary to pass back to wrapping routine:
+    p_out = {'norm_like':norm_like, 
+             'm1':m1, 
+             'm2':m2, 
+             'mtot':mtot,
+             'mtot_prob':mtot_prob}
+
+    return p_out
