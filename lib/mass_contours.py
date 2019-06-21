@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/local/bin/python2
 
 # Running tempo over a grid of cosi and m2 values to eventually plot probability
 # contours.
@@ -33,8 +33,12 @@ def tempo_chi2(parfile, timfile, tempo2=False):
         exec_out = exec_cmd(tempo_cmd).split()
         i_chi2 = exec_out.index('Chisqr/nfree')+2
         chi2_str = exec_out[i_chi2]
-        chi2 = float(chi2_str[0:chi2_str.index('/')])
-        redchi2 = float(exec_out[i_chi2+2])
+        if chi2_str.startswith('*'):
+            chi2 = 999999999.   # if it's "********", just make it a huge number.
+            redchi2 = 999999999.
+        else:    
+            chi2 = float(chi2_str[0:chi2_str.index('/')])
+            redchi2 = float(exec_out[i_chi2+2])
         
     else:   
         tempo_cmd = 'tempo -f '+parfile+' '+timfile
@@ -45,8 +49,14 @@ def tempo_chi2(parfile, timfile, tempo2=False):
         file_lines = f_lis.readlines()
         n_lines = len(file_lines)
         last_line = file_lines[n_lines-1].split()
-        chi2 = float(last_line[1].replace('/', '')) # get rid of slash...
-        redchi2 = float(last_line[4])
+        chi2_str = last_line[1].replace('/', '')
+        if chi2_str.startswith('*'):
+            chi2 = 999999999.   
+            redchi2 = 999999999.
+        else:
+            chi2 = float(chi2_str) # get rid of slash...
+#        chi2 = float(last_line[1].replace('/', '')) # get rid of slash...
+            redchi2 = float(last_line[4])
         f_lis.close()
 
     return chi2, redchi2
@@ -448,7 +458,7 @@ def grid_fit_m1m2_tempo(parfile_base, timfile,
             restart_line()
             sys.stdout.write('{0:<10d}[{1:>3d}%]  {2:8.4f}  {3:8.4f}  {4:8.4f}   {5:14.5g}  {6:14.5g}'.format(
                     i_iter, int(100*float(i_iter)/float(n_iter)), 
-                    m1[i_iter], m2[i_m2], mtot[i_mtot],  
+                    m1[i_m1], m2[i_m2], mtot[i_iter],  
                     chi2_cur, redchi2_cur))
             sys.stdout.flush()
                         

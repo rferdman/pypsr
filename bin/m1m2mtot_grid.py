@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/local/bin/python2
 
 # Running tempo over a grid of m1 and m2 values to eventually plot probability
 # contours.
