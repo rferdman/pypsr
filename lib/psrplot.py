@@ -784,7 +784,7 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
               m1m2_contour=None,
               pk_label_coord=None,
               plot_sin1=False, parfile=None, tempo_version='tempo1',
-              xlim=None, ylim=None, plot_inset=False,
+              xlim=None, ylim=None, plot_inset=False, plot_insetlim=None,
               colour=None, line_style=None, m1m2_pbdot_uncorr=None):
 
      
@@ -858,26 +858,35 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
          load_array = np.load(m1m2_contour+'_params.npy')
          # for the purposes of this routine, only need the following 
          # things in p_out
-         p_out = {'m2':load_array[0],
-                  'mtot':load_array[1],
-                  'm1':load_array[2],
-                  'm1_prob':load_array[3]}
+#         p_out = {'m2':load_array[0],
+#                  'mtot':load_array[1],
+#                  'm1':load_array[2],
+#                  'm1_prob':load_array[3]}
+         p_out = {'m1':load_array[0],
+                  'm2':load_array[1],
+                  'mtot':load_array[2],
+                  'mtot_prob':load_array[3]}
          p_out['norm_like'] = np.load(m1m2_contour+'_prob.npy')
-         m1_contour_data = p_out['mtot']-p_out['m2']
+#         m1_contour_data = p_out['mtot']-p_out['m2']
+         m1_contour_data = p_out['m1']
     #     m1lim = (args.mtotlim[0] - args.m2lim[0], args.mtotlim[1] - args.m2lim[1])
     
          prob_intervals = [0.683, 0.954, 0.9973]
+#         prob_intervals = [0.9973]
+#         prob_intervals = [0.9973, 0.954, 0.683]
 #         prob_intervals = [0.683, 0.954]
          weights=1.0
      
      # x_val = m1_contour_data, y_val = p_out['m2'], p_out['norm_like']
           # Create levels at which to plot contours at each of the above intervals.  
           # Will not assume going in that Z values are normalized to total volume of 1. 
-         contour_level = np.flip(get_prob_2D_levels(p_out['norm_like'], prob_intervals), axis=0)
+         contour_level = np.flip(get_prob_2D_levels(np.transpose(p_out['norm_like']), prob_intervals), axis=0)
+#         contour_level = np.flip(get_prob_2D_levels(p_out['norm_like'],       prob_intervals), axis=0)
      #         if (norm==True):
      #             z_val = (contour_data*weights)/np.sum(contour_data*weights)
      #         else:
-         z_val = p_out['norm_like']
+         # z_val = p_out['norm_like']
+         z_val = np.transpose(p_out['norm_like'])
      
 # Now start plotting, in order given by command-line choices of PK parameters:
      fig = plt.figure(figsize=(11,8.5))
@@ -887,6 +896,8 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
           for i_lim in range(2):  # 2 for low and hi pkk param values of m2
                ax.plot(m1, m2[plot_pk[i_pk]][:,i_lim], 
                        linestyle=line_style, color=clr[i_pk])
+                       
+          ax.fill_between(m1, m2[plot_pk[i_pk]][:,0], m2[plot_pk[i_pk]][:,1], facecolor=clr[i_pk], alpha=0.3) 
 
      if(m1m2_pbdot_uncorr != None):
           for i_lim in range(2):  # 2 for low and hi pkk param values of m2
@@ -931,7 +942,9 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
      ax.set_ylim(ylim)
      ax.set_xlabel('Pulsar mass (M$_\\odot$)', fontsize=20.0)
      ax.set_ylabel('Companion mass (M$_\\odot$)', fontsize=20.0)
-     ax.tick_params(labelsize=18)         
+     ax.tick_params(labelsize=18)  
+     ax.xaxis.set_major_locator(plt.MultipleLocator(0.5))      
+     ax.yaxis.set_major_locator(plt.MultipleLocator(0.5))      
      
      
 # If asked for, label PK params plotted at user-given coords
@@ -950,7 +963,7 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
      # Now plot the pdf data
      # Need to redo with regiular contour to get a line bordering it...
           ax.contour(m1_contour_data, p_out['m2'], z_val, levels=contour_level, 
-                        colors=('0.0','0.0', '0.0'), linewidths=[0.6, 0.6, 0.6])
+                        colors=('red','red', 'red'), linewidths=[1.6, 1.6, 1.6], zorder=99)
      # Need to do with contourf so that it gets filled
           #ax.contourf(m1_contour_data, p_out['m2'], z_val, levels=contour_level, 
         #                colors=('0.35','none'))
@@ -967,8 +980,12 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
 
 # If asked for, plot inset with zoom into area around actual masses:
      if(plot_inset):
-          xlim_inset = (m1gr - 8.0*m1gr_err, m1gr + 8.0*m1gr_err)
-          ylim_inset = (m2gr - 8.0*m2gr_err, m2gr + 8.0*m2gr_err)
+          if(plot_insetlim==None):
+              xlim_inset = (m1gr - 8.0*m1gr_err, m1gr + 8.0*m1gr_err)
+              ylim_inset = (m2gr - 8.0*m2gr_err, m2gr + 8.0*m2gr_err)
+          else:
+              xlim_inset = (plot_insetlim[0], plot_insetlim[1])
+              ylim_inset = (plot_insetlim[2], plot_insetlim[3])
           # Plot little box in main plot:
           inset_box = plt.Rectangle((xlim_inset[0], ylim_inset[0]), xlim_inset[1]-xlim_inset[0], ylim_inset[1]-ylim_inset[0], 
                                       fc='none', ec='black', linestyle='dotted')
@@ -979,21 +996,26 @@ def plot_m1m2(m1m2_file, plot_pk=None, m1gr=None, m2gr=None,
           for i_pk in range(n_plot):
                for i_lim in range(2):  # 2 for low and hi pkk param values of m2
                     ax_inset.plot(m1, m2[plot_pk[i_pk]][:,i_lim], 
-                                  linestyle='-', color=clr[i_pk])
+                                  linestyle='-', linewidth=3.2, color=clr[i_pk])
+                                  
           if(m1m2_pbdot_uncorr != None):
                for i_lim in range(2):  # 2 for low and hi pkk param values of m2
                     ax_inset.plot(m1_pbdot_uncorr, m2_pbdot_uncorr['pbdot_uncorr'][:,i_lim], 
                                   linestyle='dashed', color=clr[plot_pk.index('pbdot')])
          
           ax_inset.set_xlim(xlim_inset)
-          ax_inset.set_ylim(ylim_inset)
+          ax_inset.set_ylim(ylim_inset)                                     
+          ax_inset.xaxis.set_major_locator(plt.MultipleLocator(0.05))      
+          ax_inset.yaxis.set_major_locator(plt.MultipleLocator(0.1))      
+
 #          ax_inset.set_xlabel('$m_1$')
 #          ax_inset.set_ylabel('$m_2$')
 
           if(m1m2_contour!=None):
          # Need to redo with regiular contour to get a line bordering it...
               ax_inset.contour(m1_contour_data, p_out['m2'], z_val, levels=contour_level, 
-                            colors=('0.0','0.0', '0.0'), linewidths=[1.5, 1.5, 1.5])
+                            colors=('red','red', 'red'), linewidths=[3.2, 3.2, 3.2],
+                            linestyle=['dotted', 'dashed', 'dashed'], zorder=99)
          # Need to do with contourf so that it gets filled
               #ax_inset.contourf(m1_contour_data, p_out['m2'], z_val, levels=contour_level, 
                 #            colors=('0.6','none'))

@@ -73,7 +73,12 @@ def get_opt(progname):
      parser.add_argument('--inset',
                           action='store_true',
                           default=False,
-                          help='Residual file comes from tempo2 run')
+                          help='Plot inset centered around GR mass values')
+     parser.add_argument('--insetlim',
+                          nargs=4,
+                          type=float,
+                          default=None,
+                          help='Limits of x and y axes for inset')
 
 
      args=parser.parse_args()
@@ -162,8 +167,7 @@ def main():
                m2gr=args.m2gr, m2gr_err=args.m2gr_err, 
                m1m2_contour=args.m1m2_contour_file,
                plot_inset=args.inset, xlim=args.xlim, ylim=args.ylim,
-               plot_sin1=args.plot_sin1, parfile=args.parfile,
-               pk_label_coord=args.pkcoords)
+               plot_insetlim=args.insetlim, plot_sin1=args.plot_sin1, parfile=args.parfile, pk_label_coord=args.pkcoords)
 
      if(args.outfile):
           print 'Plotted to file ', args.outfile
