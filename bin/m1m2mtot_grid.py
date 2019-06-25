@@ -321,13 +321,13 @@ def main():
     plt.savefig(outfile_base+'_m1m2_both_pdf_old.'+args.plotformat)
 
 
-    fig = plt.figure(figsize=(16,9))
-    ax = fig.add_axes([0.12, 0.1, 0.8, 0.85])
+    fig = plt.figure(figsize=(16,5))
+    ax = fig.add_axes([0.04, 0.15, 0.92, 0.81])
     ax.xaxis.set_tick_params(labelsize=16)
     ax.yaxis.set_tick_params(labelsize=16)
     # Actually set xlabel manually so that companion and pulsar mass fall under respective PDFs
-    ax.set_xlabel(xlabel, fontsize=18)
-    ax.set_ylabel(ylabel, fontsize=18)
+    # ax.set_xlabel(xlabel, fontsize=18)
+    ax.set_ylabel("Probability density", fontsize=18)
     # Have no ticks or tick labels for the y-axis
     for tick in ax.yaxis.get_major_ticks():
         tick.label1On = False
@@ -336,19 +336,51 @@ def main():
     # Now plot m1 and m2 data
     plt.plot(p_out['m1'], m1_pdf, color='black', linestyle='steps-mid')
     plt.plot(p_out['m2'], m2_pdf, color='black', linestyle='steps-mid')
-    # Plot confidence intervals
-    plt.vlines(prob_lines, np.min(pdf_data)-0.5, np.max(pdf_data)+0.5, \
-               color=prob_linecolour, linestyle=prob_linestyle)
+    pdf_append = np.append(m1_pdf,m2_pdf)
+    mass_append = np.append(p_out['m1'], p_out['m2'])
+    xmin = np.min(mass_append)
+    xmax = np.max(mass_append)
+    ymin = np.min(pdf_append)
+    ymax = np.max(pdf_append)
+    xspan = abs(xmax - xmin)
+    yspan = abs(ymax - ymin)
 
-    ax.set_xlim(xmin, xmax)
-    ax.set_ylim(ymin - 0.01*yspan, ymax + 0.02*yspan)
+    # Plot confidence intervals
+    prob_linestyle=['dashed','dashdot','dotted', 
+                    'dashed','dashdot','dotted']
+    prob_lines_m1 = np.append(m1_prob_min, m1_prob_max)
+    ax.vlines(prob_lines_m1[[0,2,3,5]], ymin-0.5, ymax+0.5,  # Include only 1 and 3-sig
+               color="black", linestyle=prob_linestyle)
+    prob_lines_m2 = np.append(m2_prob_min, m2_prob_max)
+    ax.vlines(prob_lines_m2[[0,2,3,5]], ymin-0.5, ymax+0.5,  # Include only 1 and 3-sig
+               color="black", linestyle=prob_linestyle)
+
+    ax.fill_between(p_out['m1'], 0., m1_pdf, where=(p_out['m1']>=prob_lines_m1[0]) & (p_out['m1']<=prob_lines_m1[3]), facecolor='red', alpha=0.3) 
+    #ax.fill_between(p_out['m1'], 0., m1_pdf, where=(p_out['m1']>=prob_lines_m1[1]) & (p_out['m1']<=prob_lines_m1[0]), facecolor='red', alpha=0.3) 
+    ax.fill_between(p_out['m1'], 0., m1_pdf, where=(p_out['m1']>=prob_lines_m1[2]) & (p_out['m1']<=prob_lines_m1[0]), facecolor='yellow', alpha=0.3) 
+    #ax.fill_between(p_out['m1'], 0., m1_pdf, where=(p_out['m1']>=prob_lines_m1[3]) & (p_out['m1']<=prob_lines_m1[4]), facecolor='red', alpha=0.3) 
+    ax.fill_between(p_out['m1'], 0., m1_pdf, where=(p_out['m1']>=prob_lines_m1[3]) & (p_out['m1']<=prob_lines_m1[5]), facecolor='yellow', alpha=0.3) 
+
+    ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[0]) & (p_out['m2']<=prob_lines_m2[3]), facecolor='red', alpha=0.3) 
+    #ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[1]) & (p_out['m2']<=prob_lines_m2[0]), facecolor='red', alpha=0.3) 
+    ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[2]) & (p_out['m2']<=prob_lines_m2[0]), facecolor='yellow', alpha=0.3) 
+    #ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[3]) & (p_out['m2']<=prob_lines_m2[4]), facecolor='red', alpha=0.3) 
+    ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[3]) & (p_out['m2']<=prob_lines_m2[5]), facecolor='yellow', alpha=0.3) 
+
+    ax.set_xlim(xmin-0.02*xspan, xmax+0.02*xspan)
+    ax.set_ylim(0., ymax + 0.02*yspan)
+    
+    
+    
 
 # Use this to manually do x-axis labels...
-    if(figtext!=None):
-        for txt in figtext:
-            plt.text(txt[0], txt[1], txt[2], fontsize=10, \
-                        horizontalalignment='center', \
-                        verticalalignment='center',)
+    ax.text(0.215, -0.12, 'Companion mass', fontsize=18, 
+        horizontalalignment='center', verticalalignment='center', 
+        transform=ax.transAxes)
+# Use this to manually do x-axis labels...
+    ax.text(0.82, -0.12, 'Pulsar mass', fontsize=18, 
+        horizontalalignment='center', verticalalignment='center', 
+        transform=ax.transAxes)
 
     plt.savefig(outfile_base+'_m1m2_both_pdf.'+args.plotformat)
 
