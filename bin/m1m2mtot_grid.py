@@ -304,4 +304,53 @@ def main():
     print '   99%: ', mtot_prob_min[2], mtot_prob_max[2]
     print ' '
 
+
+# Now make a plot of m1 and m2 PDFs on same plot
+    plot_pdf(p_out['m1'], m1_pdf, 
+             xlabel='Pulsar mass ($M_\\odot$)', ylabel='Probability density',
+             prob_lines=np.append(m1_prob_min, m1_prob_max),
+             prob_linestyle=['dashed','dashdot','dotted', 
+                             'dashed','dashdot','dotted'], xlim=(1.10, 1.75), ylim=(0.00001,0.0065))
+
+    plot_pdf(p_out['m2'], m2_pdf, 
+             xlabel='Companion mass ($M_\\odot$)', ylabel='Probability density',
+             prob_lines=np.append(m2_prob_min, m2_prob_max),
+             prob_linestyle=['dashed','dashdot','dotted', 
+                             'dashed','dashdot','dotted'], overplot=True)
+
+    plt.savefig(outfile_base+'_m1m2_both_pdf_old.'+args.plotformat)
+
+
+    fig = plt.figure(figsize=(16,9))
+    ax = fig.add_axes([0.12, 0.1, 0.8, 0.85])
+    ax.xaxis.set_tick_params(labelsize=16)
+    ax.yaxis.set_tick_params(labelsize=16)
+    # Actually set xlabel manually so that companion and pulsar mass fall under respective PDFs
+    ax.set_xlabel(xlabel, fontsize=18)
+    ax.set_ylabel(ylabel, fontsize=18)
+    # Have no ticks or tick labels for the y-axis
+    for tick in ax.yaxis.get_major_ticks():
+        tick.label1On = False
+        tick.label2On = False
+        
+    # Now plot m1 and m2 data
+    plt.plot(p_out['m1'], m1_pdf, color='black', linestyle='steps-mid')
+    plt.plot(p_out['m2'], m2_pdf, color='black', linestyle='steps-mid')
+    # Plot confidence intervals
+    plt.vlines(prob_lines, np.min(pdf_data)-0.5, np.max(pdf_data)+0.5, \
+               color=prob_linecolour, linestyle=prob_linestyle)
+
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin - 0.01*yspan, ymax + 0.02*yspan)
+
+# Use this to manually do x-axis labels...
+    if(figtext!=None):
+        for txt in figtext:
+            plt.text(txt[0], txt[1], txt[2], fontsize=10, \
+                        horizontalalignment='center', \
+                        verticalalignment='center',)
+
+    plt.savefig(outfile_base+'_m1m2_both_pdf.'+args.plotformat)
+
+
 main()
