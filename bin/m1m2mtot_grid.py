@@ -41,7 +41,7 @@ def get_opt(progname):
                         nargs=2,
                         type=float,
                         default=None,
-                        help='limits of total mass over which to create grid')
+                        help='limits of pulsar mass over which to create grid')
     parser.add_argument('--m2gr',
                         type=float,
                         help='Measured companion mass as found through other means, e.g. timing with DDGR binary model')
@@ -81,10 +81,24 @@ def get_opt(progname):
                         type=float,
                         default=None,
                         help='Vales of pulsar mass in solar units to draw over contour plot')
+    parser.add_argument('--mtotlim',
+                        nargs=2,
+                        type=float,
+                        default=None,
+                        help='limits of total mass over which to create pdf')
     parser.add_argument('--mtotbins',
                         type=int,
-                        default=16,
-                        help='Number of histogram bins for mtot')
+                        default=64,
+                        help='Number of histogram bins for mtot pdf')
+    parser.add_argument('--qlim',
+                        nargs=2,
+                        type=float,
+                        default=None,
+                        help='limits of mass ratio over which to create pdf')
+    parser.add_argument('--qbins',
+                        type=int,
+                        default=64,
+                        help='Number of histogram bins for mass ratio pdf')
     parser.add_argument('--plotformat',
                         default='png',
                         help='File format for output plots')
@@ -283,9 +297,12 @@ def main():
     print ' '
 
 
+    if(args.mtotlim==None):
+        args.mtotlim=(np.amin(p_out['mtot']), np.amax(p_out['mtot']))
+
 # And now make weighted histogram of mtot values
     mtot_pdf, bin_edges = np.histogram(p_out['mtot'], args.mtotbins, 
-                                     range=(np.amin(p_out['mtot']), np.amax(p_out['mtot'])),
+                                     range=(args.mtotlim),
                                      density=True, weights=p_out['mtot_prob'])
     bin_size = bin_edges[1] - bin_edges[0]
     mtot_x = bin_edges[0:len(bin_edges)-1] + 0.5*bin_size
@@ -303,6 +320,44 @@ def main():
     print '   95%: ', mtot_prob_min[1], mtot_prob_max[1]
     print '   99%: ', mtot_prob_min[2], mtot_prob_max[2]
     print ' '
+
+
+# Try a histogram of mass ratios:
+    print "len m1, m2 = ", len(p_out['m1']), len(p_out['m2'])
+    print "shape norm_like = ", np.shape(p_out['norm_like'])
+    q_vals = []
+    q_likes = []
+    for i_m1 in np.arange(len(p_out['m1'])):
+        for i_m2 in np.arange(len(p_out['m2'])):    
+            q_vals.append(p_out['m2'][i_m2]/p_out['m1'][i_m1])
+            q_likes.append(p_out['norm_like'][i_m1, i_m2])
+    q_vals = np.array(q_vals)
+    q_likes = np.array(q_likes)
+
+    if(args.qlim==None):
+        args.qlim=(np.amin(q_vals), np.amax(q_vals))
+        
+    q_pdf, bin_edges = np.histogram(q_vals, args.qbins, 
+                                     range=(args.qlim),
+                                     density=True, weights=q_likes)
+    bin_size = bin_edges[1] - bin_edges[0]
+    q_x = bin_edges[0:len(bin_edges)-1] + 0.5*bin_size
+    
+    q_med, q_prob_min, q_prob_max = \
+        get_pdf_prob(q_x, q_pdf, prob_intervals, norm=True)
+    plot_pdf(q_x, q_pdf, 
+             xlabel='Mass ratio', ylabel='Probability density',
+             prob_lines=np.append(mtot_prob_min, mtot_prob_max),
+             prob_linestyle=['dashed','dashdot','dotted', 
+                             'dashed','dashdot','dotted'])
+    plt.savefig(outfile_base+'_q_m1m2_pdf.'+args.plotformat)
+    print 'MASS RATIO = ', q_med
+    print '   68%: ', q_prob_min[0], q_prob_max[0]
+    print '   95%: ', q_prob_min[1], q_prob_max[1]
+    print '   99%: ', q_prob_min[2], q_prob_max[2]
+    print ' '
+    
+    
 
 
 # Now make a plot of m1 and m2 PDFs on same plot
@@ -346,8 +401,8 @@ def main():
     yspan = abs(ymax - ymin)
 
     # Plot confidence intervals
-    prob_linestyle=['dashed','dashdot','dotted', 
-                    'dashed','dashdot','dotted']
+    prob_linestyle=['dashed','dotted', 
+                    'dashed','dotted']
     prob_lines_m1 = np.append(m1_prob_min, m1_prob_max)
     ax.vlines(prob_lines_m1[[0,2,3,5]], ymin-0.5, ymax+0.5,  # Include only 1 and 3-sig
                color="black", linestyle=prob_linestyle)
