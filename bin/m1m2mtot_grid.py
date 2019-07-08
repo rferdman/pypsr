@@ -359,23 +359,6 @@ def main():
     
     
 
-
-# Now make a plot of m1 and m2 PDFs on same plot
-    plot_pdf(p_out['m1'], m1_pdf, 
-             xlabel='Pulsar mass ($M_\\odot$)', ylabel='Probability density',
-             prob_lines=np.append(m1_prob_min, m1_prob_max),
-             prob_linestyle=['dashed','dashdot','dotted', 
-                             'dashed','dashdot','dotted'], xlim=(1.10, 1.75), ylim=(0.00001,0.0065))
-
-    plot_pdf(p_out['m2'], m2_pdf, 
-             xlabel='Companion mass ($M_\\odot$)', ylabel='Probability density',
-             prob_lines=np.append(m2_prob_min, m2_prob_max),
-             prob_linestyle=['dashed','dashdot','dotted', 
-                             'dashed','dashdot','dotted'], overplot=True)
-
-    plt.savefig(outfile_base+'_m1m2_both_pdf_old.'+args.plotformat)
-
-
     fig = plt.figure(figsize=(16,5))
     ax = fig.add_axes([0.04, 0.15, 0.92, 0.81])
     ax.xaxis.set_tick_params(labelsize=16)
@@ -410,17 +393,17 @@ def main():
     ax.vlines(prob_lines_m2[[0,2,3,5]], ymin-0.5, ymax+0.5,  # Include only 1 and 3-sig
                color="black", linestyle=prob_linestyle)
 
-    ax.fill_between(p_out['m1'], 0., m1_pdf, where=(p_out['m1']>=prob_lines_m1[0]) & (p_out['m1']<=prob_lines_m1[3]), facecolor='red', alpha=0.3) 
+    ax.fill_between(p_out['m1'], 0., m1_pdf, where=(p_out['m1']>=prob_lines_m1[0]) & (p_out['m1']<=prob_lines_m1[3]), facecolor='C3', alpha=0.5) 
     #ax.fill_between(p_out['m1'], 0., m1_pdf, where=(p_out['m1']>=prob_lines_m1[1]) & (p_out['m1']<=prob_lines_m1[0]), facecolor='red', alpha=0.3) 
-    ax.fill_between(p_out['m1'], 0., m1_pdf, where=(p_out['m1']>=prob_lines_m1[2]) & (p_out['m1']<=prob_lines_m1[0]), facecolor='yellow', alpha=0.3) 
+    ax.fill_between(p_out['m1'], 0., m1_pdf, where=(p_out['m1']>=prob_lines_m1[2]) & (p_out['m1']<=prob_lines_m1[0]), facecolor='C8', alpha=0.7) 
     #ax.fill_between(p_out['m1'], 0., m1_pdf, where=(p_out['m1']>=prob_lines_m1[3]) & (p_out['m1']<=prob_lines_m1[4]), facecolor='red', alpha=0.3) 
-    ax.fill_between(p_out['m1'], 0., m1_pdf, where=(p_out['m1']>=prob_lines_m1[3]) & (p_out['m1']<=prob_lines_m1[5]), facecolor='yellow', alpha=0.3) 
+    ax.fill_between(p_out['m1'], 0., m1_pdf, where=(p_out['m1']>=prob_lines_m1[3]) & (p_out['m1']<=prob_lines_m1[5]), facecolor='C8', alpha=0.7) 
 
-    ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[0]) & (p_out['m2']<=prob_lines_m2[3]), facecolor='red', alpha=0.3) 
-    #ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[1]) & (p_out['m2']<=prob_lines_m2[0]), facecolor='red', alpha=0.3) 
-    ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[2]) & (p_out['m2']<=prob_lines_m2[0]), facecolor='yellow', alpha=0.3) 
-    #ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[3]) & (p_out['m2']<=prob_lines_m2[4]), facecolor='red', alpha=0.3) 
-    ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[3]) & (p_out['m2']<=prob_lines_m2[5]), facecolor='yellow', alpha=0.3) 
+    ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[0]) & (p_out['m2']<=prob_lines_m2[3]), facecolor='C3', step='mid', alpha=0.5) 
+    #ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[1]) & (p_out['m2']<=prob_lines_m2[0]), facecolor='red', step='mid', alpha=0.3) 
+    ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[2]) & (p_out['m2']<=prob_lines_m2[0]), facecolor='C8', step='mid', alpha=0.7) 
+    #ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[3]) & (p_out['m2']<=prob_lines_m2[4]), facecolor='red', step='mid', alpha=0.3) 
+    ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[3]) & (p_out['m2']<=prob_lines_m2[5]), facecolor='C8', step='mid', alpha=0.7) 
 
     ax.set_xlim(xmin-0.02*xspan, xmax+0.02*xspan)
     ax.set_ylim(0., ymax + 0.02*yspan)
@@ -438,6 +421,64 @@ def main():
         transform=ax.transAxes)
 
     plt.savefig(outfile_base+'_m1m2_both_pdf.'+args.plotformat)
+
+
+# Finally, re-plot mass ratio, and plot a histogram of known q ratios for merging systems.
+    fig = plt.figure(figsize=(9,5))
+    ax = fig.add_axes([0.04, 0.15, 0.92, 0.81])
+    ax.xaxis.set_tick_params(labelsize=16)
+    ax.yaxis.set_tick_params(labelsize=16)
+    # Actually set xlabel manually so that companion and pulsar mass fall under respective PDFs
+    ax.set_xlabel("Mass ratio", fontsize=18)
+    ax.set_ylabel("Probability density", fontsize=18)
+    # Have no ticks or tick labels for the y-axis
+    for tick in ax.yaxis.get_major_ticks():
+        tick.label1On = False
+        tick.label2On = False
+        
+    plt.plot(q_x, q_pdf, color='black', linestyle='steps-mid')
+    xmin = np.min(q_x)
+    xmax = np.max(q_x)
+    ymin = np.min(q_pdf)
+    ymax = np.max(q_pdf)
+    xspan = abs(xmax - xmin)
+    yspan = abs(ymax - ymin)
+
+    prob_linestyle=['dashed','dotted', 
+                    'dashed','dotted']
+    prob_lines_q = np.append(q_prob_min, q_prob_max)
+    ax.vlines(prob_lines_q[[0,2,3,5]], ymin-0.5, ymax+0.5,  # Include only 1 and 3-sig
+               color="black", linestyle=prob_linestyle)
+
+    ax.fill_between(q_x, 0., q_pdf, where=(q_x>=prob_lines_q[0]) & (q_x<=prob_lines_q[3]), facecolor='C0', step='mid', alpha=0.5) 
+    ax.fill_between(q_x, 0., q_pdf, where=(q_x>=prob_lines_q[2]) & (q_x<=prob_lines_q[0]), facecolor='C1', step='mid', alpha=0.5) 
+    ax.fill_between(q_x, 0., q_pdf, where=(q_x>=prob_lines_q[3]) & (q_x<=prob_lines_q[5]), facecolor='C1', step='mid', alpha=0.5) 
+
+    print 'qlim = ', args.qlim
+# Now histogram of merging system q-values
+# 0737, 1534, 1756, 1829, 1906, 1913+1102, 1913+16, 2127+11C (+ don't have J1946 masses)
+    q_dns = np.array([1.249/1.338, 1.333/1.346, 1.230/1.341, 1.277/1.333, 1.291/1.322, 0.78, 1.389/1.440, 1.354/1.358])
+    print 'q_dns = ', q_dns
+# we will be plotting over q pdf plot                                     
+    q_dns_hist, bin_edges = np.histogram(q_dns, 12, range=(xmin, np.max(q_dns))) 
+    bin_size = bin_edges[1] - bin_edges[0]
+    q_dns_x = bin_edges[0:len(bin_edges)-1] + 0.5*bin_size
+    print 'q_dns_x, q_dns_hist = ', q_dns_x, q_dns_hist
+    print 'scaled q_dns_his'
+
+#    ax.set_xlim(xmin-0.02*xspan, xmax+0.02*xspan)
+    ax.set_xlim(xmin-0.02*xspan, np.amax(q_dns)+0.02*xspan)
+    ax.set_ylim(0., ymax+0.02*yspan)
+    
+    ax.bar(q_dns_x, q_dns_hist*ymax/np.amax(q_dns_hist), width=0.0175, align='center', color='C3', alpha=0.9)
+#    ax.bar(q_dns_x, q_dns_hist)
+    
+    plt.savefig(outfile_base+'_q_pdf.'+args.plotformat)
+
+# To do:
+#    - get rid of ticks on left side
+#    - label right hand axis for q DNS histogram
+#    - fix up fill_between
 
 
 main()
