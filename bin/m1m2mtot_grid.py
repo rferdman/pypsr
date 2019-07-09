@@ -432,10 +432,11 @@ def main():
     ax.set_xlabel("Mass ratio", fontsize=18)
     ax.set_ylabel("Probability density", fontsize=18)
     # Have no ticks or tick labels for the y-axis
-    for tick in ax.yaxis.get_major_ticks():
-        tick.label1On = False
-        tick.label2On = False
-        
+    ax.tick_params(
+        axis='y',          
+        which='both',      
+        left=False, right=False,
+        labelleft=False, labelright=False)        
     plt.plot(q_x, q_pdf, color='black', linestyle='steps-mid')
     xmin = np.min(q_x)
     xmax = np.max(q_x)
@@ -472,7 +473,11 @@ def main():
     
     ax.bar(q_dns_x, q_dns_hist*ymax/np.amax(q_dns_hist), width=0.0175, align='center', color='C3', alpha=0.9)
 #    ax.bar(q_dns_x, q_dns_hist)
-    
+
+    ax2 = ax.twinx()
+    ax2.set_ylabel('Number of DNS systems', fontsize=18)
+    ax2.tick_params(labelsize=16)
+
     plt.savefig(outfile_base+'_q_pdf.'+args.plotformat)
 
 # To do:
