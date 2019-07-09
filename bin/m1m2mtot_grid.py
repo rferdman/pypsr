@@ -347,7 +347,7 @@ def main():
         get_pdf_prob(q_x, q_pdf, prob_intervals, norm=True)
     plot_pdf(q_x, q_pdf, 
              xlabel='Mass ratio', ylabel='Probability density',
-             prob_lines=np.append(mtot_prob_min, mtot_prob_max),
+             prob_lines=np.append(q_prob_min, q_prob_max),
              prob_linestyle=['dashed','dashdot','dotted', 
                              'dashed','dashdot','dotted'])
     plt.savefig(outfile_base+'_q_m1m2_pdf.'+args.plotformat)
@@ -432,12 +432,8 @@ def main():
     ax.set_xlabel("Mass ratio", fontsize=18)
     ax.set_ylabel("Probability density", fontsize=18)
     # Have no ticks or tick labels for the y-axis
-    ax.tick_params(
-        axis='y',          
-        which='both',      
-        left=False, right=False,
-        labelleft=False, labelright=False)        
-    plt.plot(q_x, q_pdf, color='black', linestyle='steps-mid')
+#    ax.plot(q_x, q_pdf, color='black', linestyle='steps-mid')
+    ax.step(q_x, q_pdf, color='black', where='mid')
     xmin = np.min(q_x)
     xmax = np.max(q_x)
     ymin = np.min(q_pdf)
@@ -468,15 +464,23 @@ def main():
     print 'scaled q_dns_his'
 
 #    ax.set_xlim(xmin-0.02*xspan, xmax+0.02*xspan)
-    ax.set_xlim(xmin-0.02*xspan, np.amax(q_dns)+0.02*xspan)
-    ax.set_ylim(0., ymax+0.02*yspan)
-    
-    ax.bar(q_dns_x, q_dns_hist*ymax/np.amax(q_dns_hist), width=0.0175, align='center', color='C3', alpha=0.9)
-#    ax.bar(q_dns_x, q_dns_hist)
+    ax.set_xlim(xmin-0.02*xspan, np.amax(q_dns)+0.02*xspan)  # Min of PDF and max of histogram covers the range needed
+    ax.set_ylim(0.02, ymax+0.02*yspan)
+    for tick in ax.yaxis.get_major_ticks():
+        tick.label1On = False
+        tick.label2On = False
 
+    
     ax2 = ax.twinx()
     ax2.set_ylabel('Number of DNS systems', fontsize=18)
     ax2.tick_params(labelsize=16)
+#    ax2.set_xlim(xmin-0.02*xspan, np.amax(q_dns)+0.02*xspan)
+    ax2.set_ylim(0.02, 1.02*(np.amax(q_dns_hist)))
+    ax2.yaxis.set_major_locator(plt.MultipleLocator(1))
+
+    ax.bar(q_dns_x, q_dns_hist*ymax/np.amax(q_dns_hist), width=0.0175, align='center', color='C3', alpha=0.9)
+#    ax.bar(q_dns_x, q_dns_hist)
+
 
     plt.savefig(outfile_base+'_q_pdf.'+args.plotformat)
 
