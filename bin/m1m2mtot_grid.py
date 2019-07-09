@@ -359,7 +359,8 @@ def main():
     
     
 
-    fig = plt.figure(figsize=(16,5))
+    fig = plt.figure(figsize=(10,5))
+#    ax = fig.add_axes([0.04, 0.15, 0.9, 0.81])
     ax = fig.add_axes([0.04, 0.15, 0.92, 0.81])
     ax.xaxis.set_tick_params(labelsize=16)
     ax.yaxis.set_tick_params(labelsize=16)
@@ -367,10 +368,8 @@ def main():
     # ax.set_xlabel(xlabel, fontsize=18)
     ax.set_ylabel("Probability density", fontsize=18)
     # Have no ticks or tick labels for the y-axis
-    for tick in ax.yaxis.get_major_ticks():
-        tick.label1On = False
-        tick.label2On = False
-        
+    ax.tick_params(axis='y', which='both', left=False, labelleft=False) 
+            
     # Now plot m1 and m2 data
     plt.plot(p_out['m1'], m1_pdf, color='black', linestyle='steps-mid')
     plt.plot(p_out['m2'], m2_pdf, color='black', linestyle='steps-mid')
@@ -406,26 +405,27 @@ def main():
     ax.fill_between(p_out['m2'], 0., m2_pdf, where=(p_out['m2']>=prob_lines_m2[3]) & (p_out['m2']<=prob_lines_m2[5]), facecolor='C8', step='mid', alpha=0.7) 
 
     ax.set_xlim(xmin-0.02*xspan, xmax+0.02*xspan)
-    ax.set_ylim(0., ymax + 0.02*yspan)
+#    ax.set_ylim(0., ymax + 0.02*yspan)
+    ax.set_ylim(0.02*yspan, ymax+0.02*yspan)
     
     
     
 
 # Use this to manually do x-axis labels...
-    ax.text(0.215, -0.12, 'Companion mass', fontsize=18, 
-        horizontalalignment='center', verticalalignment='center', 
-        transform=ax.transAxes)
+    ax.text(m2_med, -0.095*yspan, 'Companion mass', fontsize=18, 
+        horizontalalignment='center', verticalalignment='center')
+#        transform=ax.transAxes)
 # Use this to manually do x-axis labels...
-    ax.text(0.82, -0.12, 'Pulsar mass', fontsize=18, 
-        horizontalalignment='center', verticalalignment='center', 
-        transform=ax.transAxes)
+    ax.text(m1_med, -0.095*yspan, 'Pulsar mass', fontsize=18, 
+        horizontalalignment='center', verticalalignment='center') 
+#        transform=ax.transAxes)
 
     plt.savefig(outfile_base+'_m1m2_both_pdf.'+args.plotformat)
 
 
 # Finally, re-plot mass ratio, and plot a histogram of known q ratios for merging systems.
-    fig = plt.figure(figsize=(9,5))
-    ax = fig.add_axes([0.04, 0.15, 0.92, 0.81])
+    fig = plt.figure(figsize=(10,5))
+    ax = fig.add_axes([0.04, 0.15, 0.9, 0.81])
     ax.xaxis.set_tick_params(labelsize=16)
     ax.yaxis.set_tick_params(labelsize=16)
     # Actually set xlabel manually so that companion and pulsar mass fall under respective PDFs
@@ -454,10 +454,10 @@ def main():
     print 'qlim = ', args.qlim
 # Now histogram of merging system q-values
 # 0737, 1534, 1756, 1829, 1906, 1913+1102, 1913+16, 2127+11C (+ don't have J1946 masses)
-    q_dns = np.array([1.249/1.338, 1.333/1.346, 1.230/1.341, 1.277/1.333, 1.291/1.322, 0.78, 1.389/1.440, 1.354/1.358])
+    q_dns = np.array([1.249/1.338, 1.333/1.346, 1.230/1.341, 1.277/1.333, 1.291/1.322, 0.779, 1.389/1.440, 1.354/1.358])
     print 'q_dns = ', q_dns
 # we will be plotting over q pdf plot                                     
-    q_dns_hist, bin_edges = np.histogram(q_dns, 12, range=(xmin, np.max(q_dns))) 
+    q_dns_hist, bin_edges = np.histogram(q_dns, 10, range=(np.min(q_dns), np.max(q_dns))) 
     bin_size = bin_edges[1] - bin_edges[0]
     q_dns_x = bin_edges[0:len(bin_edges)-1] + 0.5*bin_size
     print 'q_dns_x, q_dns_hist = ', q_dns_x, q_dns_hist
@@ -468,7 +468,7 @@ def main():
     ax.set_ylim(0.02, ymax+0.02*yspan)
     for tick in ax.yaxis.get_major_ticks():
         tick.label1On = False
-        tick.label2On = False
+        #tick.label2On = False
 
     
     ax2 = ax.twinx()
@@ -477,11 +477,19 @@ def main():
 #    ax2.set_xlim(xmin-0.02*xspan, np.amax(q_dns)+0.02*xspan)
     ax2.set_ylim(0.02, 1.02*(np.amax(q_dns_hist)))
     ax2.yaxis.set_major_locator(plt.MultipleLocator(1))
-
+    ax2.tick_params(axis='y', which='both', top=False, left=False, labelleft=False)
+    ax.tick_params(axis='y', which='both', top=False, left=False, labelleft=False) # need to reset.
+    
     ax.bar(q_dns_x, q_dns_hist*ymax/np.amax(q_dns_hist), width=0.0175, align='center', color='C3', alpha=0.9)
 #    ax.bar(q_dns_x, q_dns_hist)
 
+# Now label q pdf vs DNS q distribution
+    ax2.text(0.747, 2.7, 'PSR J1913+1102', fontsize=14, fontweight='bold',
+        horizontalalignment='right', verticalalignment='center')
+    ax2.text(0.965, 2.7, 'Merging DNSs', fontsize=14, fontweight='bold',
+        horizontalalignment='right', verticalalignment='center')
 
+#
     plt.savefig(outfile_base+'_q_pdf.'+args.plotformat)
 
 # To do:
