@@ -294,7 +294,7 @@ def read_resid(resid_file, tempo2=False, info_file=None, info_flag=None):
                    if (len(info_line) == 2):
                         instrument.append(info_line[1])
                    else:
-                        instrument.append(NULL)
+                        instrument.append(None)
               instrument=np.array(instrument)
          
          # Array for unique values of info number, and corresponding
@@ -306,9 +306,9 @@ def read_resid(resid_file, tempo2=False, info_file=None, info_flag=None):
               for i_info in np.arange(len(info_val)):
                    print '   ', info_val[i_info], '  ', info_instr[i_info]
          else:
-              info_id = None
-              info_val = None
-              info_instr = None
+              info_id = np.array([])
+              info_val = np.array([])
+              info_instr = np.array([])
 
 # Just conert serial into an integer list:
     serial = [int(x) for x in serial]

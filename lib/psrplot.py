@@ -224,10 +224,10 @@ def plot_resid(resid_data, info_plot=None, canvassize=None,
      if(axis_limits is None):
           axis_limits = []
           for i_plot in np.arange(len(resid_data)):
-               x1 = 0.12
-               xwidth = 0.8
-               ywidth=0.85/len(resid_data)
-               y1 = 0.12 + i_plot*ywidth
+               x1 = 0.11
+               xwidth = 0.87
+               ywidth=0.82/len(resid_data)
+               y1 = 0.15 + i_plot*ywidth
                axis_limits.append([x1, y1, xwidth, ywidth])
      else:
           if(type(axis_limits) is list):
@@ -360,7 +360,7 @@ def plot_resid(resid_data, info_plot=None, canvassize=None,
           y_max = []
      # Set things up for plotting, especially if there are many infos 
      # and colours:
-          if (res_data['info'] != None):
+          if (len(res_data['info']) > 0):
                # Find common info numbers between the command-line 
                # requested info numbers, and those in the info file itself, 
                # and only plot these:
@@ -413,12 +413,13 @@ def plot_resid(resid_data, info_plot=None, canvassize=None,
                              else:
                                  print 'Error: Must use same number of colours as info numbers.  Exiting'
                                  return
-                    ax[i_plot].plot(res_x, res_y, sym, 
-                                    markersize=symsize, 
-                                    markeredgecolor=clr, 
-                                    markerfacecolor=clr)
+                    #ax[i_plot].plot(res_x, res_y, sym, 
+                    #                markersize=symsize, 
+                    #                markeredgecolor=clr, 
+                    #                markerfacecolor=clr)
                     ax[i_plot].errorbar(res_x, res_y, yerr=res_err, 
-                                        fmt=None, capsize=csize, 
+                                        fmt=sym, #capsize=csize,
+                                        color=clr,
                                         ecolor=clr)
           else:
                n_info = 1
